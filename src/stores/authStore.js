@@ -55,12 +55,17 @@ export const useAuthStore = create(
         }
       },
 
-      googleLogin: async (firebaseToken) => {
+      googleLogin: async (googleToken, additionalData = {}) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await api.post('/auth/google', { firebaseToken });
+          const response = await api.post('/auth/google', { googleToken, ...additionalData });
+          
+          if (response.data.requireMoreData) {
+            set({ isLoading: false });
+            return { success: true, requireMoreData: true, pendingData: response.data.pendingData };
+          }
+          
           const { token, user } = response.data;
-
           localStorage.setItem('token', token);
           set({ user, token, isAuthenticated: true, isLoading: false });
           return { success: true, isNewUser: response.data.isNewUser };

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
 import './index.css';
 
@@ -58,6 +59,7 @@ root.render(
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
+        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || 'dummy-client-id-replace-in-env'}>
         <BrowserRouter basename={process.env.PUBLIC_URL}>
           <App />
           <Toaster
@@ -81,6 +83,7 @@ root.render(
             }}
           />
         </BrowserRouter>
+        </GoogleOAuthProvider>
       </HelmetProvider>
     </QueryClientProvider>
   </ErrorBoundary>
