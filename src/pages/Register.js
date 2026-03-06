@@ -20,6 +20,91 @@ const INTERESTS = [
   '🎤 Debate', '🧘 Wellness', '🎬 Movies', '🌱 Eco-Living',
 ];
 
+// ─── Drum-Roll Date Picker ───────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 80 }, (_, i) => String(currentYear - 18 - i));
+
+const Drum = ({ items, selected, onSelect, label }) => {
+  const ref = React.useRef(null);
+  const ITEM_H = 44;
+  const idx = items.indexOf(selected);
+
+  React.useEffect(() => {
+    if (ref.current) ref.current.scrollTop = idx * ITEM_H;
+  }, []); // eslint-disable-line
+
+  const handleScroll = () => {
+    if (!ref.current) return;
+    const i = Math.round(ref.current.scrollTop / ITEM_H);
+    const clamped = Math.max(0, Math.min(i, items.length - 1));
+    if (items[clamped] !== selected) onSelect(items[clamped]);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1 flex-1">
+      <span className="text-dark-500 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</span>
+      <div className="relative w-full" style={{ height: ITEM_H * 3 }}>
+        {/* Selection highlight */}
+        <div className="absolute left-0 right-0 pointer-events-none z-10 rounded-xl"
+          style={{ top: ITEM_H, height: ITEM_H, background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)' }} />
+        {/* Top/bottom fade */}
+        <div className="absolute inset-x-0 top-0 h-10 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(15,13,12,1), transparent)' }} />
+        <div className="absolute inset-x-0 bottom-0 h-10 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, rgba(15,13,12,1), transparent)' }} />
+        <div
+          ref={ref}
+          onScroll={handleScroll}
+          className="overflow-y-scroll h-full"
+          style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {/* Padding items */}
+          <div style={{ height: ITEM_H }} />
+          {items.map(item => (
+            <div key={item}
+              onClick={() => {
+                const i = items.indexOf(item);
+                ref.current.scrollTo({ top: i * ITEM_H, behavior: 'smooth' });
+                onSelect(item);
+              }}
+              style={{ height: ITEM_H, scrollSnapAlign: 'center' }}
+              className={`flex items-center justify-center text-base font-bold cursor-pointer transition-colors select-none
+                ${item === selected ? 'text-white' : 'text-dark-600'}`}
+            >
+              {item}
+            </div>
+          ))}
+          <div style={{ height: ITEM_H }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DateRoller = ({ value, onChange }) => {
+  const parts = value ? value.split('-') : [];
+  const [year, setYear] = React.useState(parts[0] || YEARS[0]);
+  const [month, setMonth] = React.useState(parts[1] ? MONTHS[parseInt(parts[1]) - 1] : MONTHS[0]);
+  const [day, setDay] = React.useState(parts[2] || DAYS[0]);
+
+  React.useEffect(() => {
+    const m = String(MONTHS.indexOf(month) + 1).padStart(2, '0');
+    onChange(`${year}-${m}-${day}`);
+  }, [day, month, year]); // eslint-disable-line
+
+  return (
+    <div className="flex gap-2 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <Drum items={DAYS} selected={day} onSelect={setDay} label="Day" />
+      <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <Drum items={MONTHS} selected={month} onSelect={setMonth} label="Month" />
+      <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <Drum items={YEARS} selected={year} onSelect={setYear} label="Year" />
+    </div>
+  );
+};
+
 const Register = () => {
   const navigate = useNavigate();
   const { register, googleLogin, error, clearError, isLoading } = useAuthStore();
@@ -378,22 +463,23 @@ const Register = () => {
                     <label className="block text-sm font-semibold text-dark-200 mb-2">First name</label>
                     <input type="text" value={formData.firstName}
                       onChange={e => update('firstName', e.target.value)}
-                      className="input" placeholder="Aisha" required />
+                      className="input" required />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-dark-200 mb-2">Last name</label>
                     <input type="text" value={formData.lastName}
                       onChange={e => update('lastName', e.target.value)}
-                      className="input" placeholder="Nakato" required />
+                      className="input" required />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-dark-200 mb-2">Date of birth</label>
-                  <input type="date" value={formData.dateOfBirth}
-                    onChange={e => update('dateOfBirth', e.target.value)}
-                    className="input" required />
-                  <p className="text-dark-500 text-xs mt-1">You must be 18 or older 🔞</p>
+                  <DateRoller
+                    value={formData.dateOfBirth}
+                    onChange={val => update('dateOfBirth', val)}
+                  />
+                  <p className="text-dark-500 text-xs mt-2">You must be 18 or older 🔞</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
