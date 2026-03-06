@@ -65,9 +65,15 @@ const Navigation = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 sm:hidden z-[100] px-4 pb-4"
+      className="fixed bottom-0 left-0 right-0 sm:hidden z-[100] px-4 pb-4 w-full"
     >
-      <div className="glass-card-premium h-20 rounded-[2rem] flex items-center justify-around px-2 shadow-2xl border-white/10 relative overflow-hidden">
+      <div 
+        className="glass-card-premium h-20 rounded-[2rem] flex items-center justify-around px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-white/10 relative overflow-hidden backdrop-blur-3xl"
+        style={{
+          background: 'rgba(20, 18, 17, 0.85)',
+          WebkitBackdropFilter: 'blur(24px)'
+        }}
+      >
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
 
         {navItems.map((item) => {
