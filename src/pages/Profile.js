@@ -220,25 +220,16 @@ const Profile = () => {
       {/* ── Subscription ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="glass-card p-5"
-        style={subTier === 'premium' ? { border: '1px solid rgba(244,63,94,0.4)' } : subTier === 'vip' ? { border: '1px solid rgba(245,158,11,0.4)' } : {}}
+        className="px-1"
       >
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-white font-bold">Subscription</h2>
-            <p className="text-dark-400 text-sm capitalize">
-              {subTier === 'free' ? 'Free Plan · 50 swipes/day' :
-                subTier === 'premium' ? '⭐ Premium · Unlimited swipes' :
-                  '👑 VIP · All features unlocked'}
-            </p>
-          </div>
+          <p className="text-dark-300 text-sm">
+            {subTier === 'free' ? '🆓 Free Plan · 50 swipes/day' :
+              subTier === 'premium' ? '⭐ Premium · Unlimited swipes' :
+                '👑 VIP · All features unlocked'}
+          </p>
           {subTier === 'free' && (
             <a href="/subscription" className="btn-brand text-sm px-4 py-2">Upgrade ✨</a>
-          )}
-          {subTier !== 'free' && (
-            <span className={subTier === 'vip' ? 'badge-vip' : 'badge-premium'}>
-              {subTier === 'vip' ? '👑 VIP' : '⭐ Premium'}
-            </span>
           )}
         </div>
       </motion.div>
