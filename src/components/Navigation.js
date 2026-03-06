@@ -78,7 +78,7 @@ const Navigation = () => {
               to={item.path}
               className="flex-1 flex flex-col items-center justify-center h-full gap-1.5 relative group"
             >
-              <div className={`relative transition-all duration-500 ${isActive ? 'scale-110' : 'opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100'}`}>
+              <div className={`relative transition-all duration-500 mb-1 ${isActive ? 'scale-110' : 'opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100'}`}>
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-white/10 shadow-lg' : ''}`}>
                   <span className="text-2xl drop-shadow-md">{item.emoji}</span>
                 </div>
@@ -92,7 +92,7 @@ const Navigation = () => {
                 )}
               </div>
 
-              <span className={`text-[9px] font-black uppercase tracking-[0.15em] transition-all duration-300 ${isActive ? 'text-white translate-y-0' : 'text-dark-500 translate-y-1 opacity-0 group-hover:opacity-100 group-hover:translate-y-0'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors duration-300 ${isActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-200'}`}>
                 {item.label}
               </span>
 

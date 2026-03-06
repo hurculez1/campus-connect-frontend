@@ -20,7 +20,7 @@ const Layout = () => {
                 <img
                   src={`${process.env.PUBLIC_URL}/logo.png`}
                   alt="Campus Connect Logo"
-                  className={`w-9 h-9 object-contain transition-all duration-500 ${isDating ? 'drop-shadow-[0_0_12px_rgba(244,63,94,0.6)]' : 'drop-shadow-[0_0_12px_rgba(99,102,241,0.6)] filter hue-rotate-[180deg]'}`}
+                  className={`w-12 h-12 object-contain transition-all duration-500 ${isDating ? 'drop-shadow-[0_0_12px_rgba(244,63,94,0.6)]' : 'drop-shadow-[0_0_12px_rgba(99,102,241,0.6)] filter hue-rotate-[180deg]'}`}
                   style={{ mixBlendMode: 'screen' }}
                 />
                 <span className="hidden lg:block text-white font-black text-xl tracking-tight">

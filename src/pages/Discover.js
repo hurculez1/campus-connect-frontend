@@ -12,7 +12,6 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
   const rotate = useTransform(x, [-300, 0, 300], [-28, 0, 28]);
   const likeOpacity = useTransform(x, [20, 120], [0, 1]);
   const nopeOpacity = useTransform(x, [-120, -20], [1, 0]);
-  const superOpacity = useTransform(y, [-120, -20], [1, 0]);
 
   const isDating = mode === 'dating';
 
@@ -25,15 +24,13 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
       onSwipe('right');
     } else if (offset.x < -swipeThreshold || (velocity.x < -velocityThreshold && offset.x < -20)) {
       onSwipe('left');
-    } else if (offset.y < -swipeThreshold || (velocity.y < -velocityThreshold && offset.y < -20)) {
-      onSwipe('up');
     }
   }, [onSwipe]);
 
   return (
     <motion.div
-      style={{ x, y, rotate, position: 'absolute', inset: 0, zIndex: 20, cursor: 'grab' }}
-      drag
+      style={{ x, y: 0, rotate, position: 'absolute', inset: 0, zIndex: 20, cursor: 'grab' }}
+      drag="x" // Horizontal drag only
       dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
       dragElastic={0.8}
       onDragEnd={handleDragEnd}
@@ -45,8 +42,8 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
       <motion.div style={{ opacity: nopeOpacity }} className="swipe-indicator nope">
         NOPE
       </motion.div>
-      <motion.div style={{ opacity: superOpacity }} className="swipe-indicator super">
-        SUPER ⭐
+      <motion.div style={{ opacity: nopeOpacity }} className="swipe-indicator nope">
+        NOPE
       </motion.div>
       {children}
     </motion.div>
@@ -376,10 +373,28 @@ const Discover = () => {
           {lastDirection && (
             <motion.div key={lastDirection} initial={{ opacity: 1, scale: 0.5 }} animate={{ opacity: 0, scale: 2 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
               className={`absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-9xl z-50 pointer-events-none drop-shadow-2xl`}>
-              {lastDirection === 'right' ? (isDating ? '❤️' : '📚') : lastDirection === 'up' ? '⭐' : '👋'}
+              {lastDirection === 'right' ? (isDating ? '❤️' : '📚') : '👋'}
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Gesture Hint (Only shows for the very first swipe) */}
+        {currentIndex === 0 && (
+          <div className="absolute inset-0 pointer-events-none z-50 flex flex-col items-center justify-center opacity-70">
+            <motion.div 
+              animate={{ x: [-20, 20, -20] }} 
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="glass-card-premium px-6 py-3 rounded-full flex items-center gap-4 border-white/10"
+            >
+              <span className="text-xl">👈 Nope</span>
+              <div className="w-1 h-6 bg-white/20 rounded-full" />
+              <div className="text-2xl">👆</div>
+              <div className="w-1 h-6 bg-white/20 rounded-full" />
+              <span className="text-xl">Like 👉</span>
+            </motion.div>
+            <p className="mt-4 text-xs font-black uppercase tracking-widest text-dark-400 drop-shadow-md">Swipe Horizontally</p>
+          </div>
+        )}
       </div>
     </>
   );
