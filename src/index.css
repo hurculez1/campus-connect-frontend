@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=Outfit:wght@100;300;400;500;600;700;800;900&display=swap');
+
+/* ── Design Tokens ───────────────────────────────── */
+:root {
+  --brand-primary: #f43f5e;
+  --brand-secondary: #f59e0b;
+  --study-primary: #6366f1;
+  --study-secondary: #a855f7;
+  --glass-bg: rgba(15, 13, 12, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-reflection: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Base ─────────────────────────────────────────── */
+@layer base {
+  html {
+    @apply antialiased scroll-smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    @apply bg-dark-950 text-dark-50 min-h-screen overflow-x-hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    @apply bg-brand-500/30 text-white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-dark-500;
+  }
+}
+
+/* ── Components ───────────────────────────────────── */
+@layer components {
+
+  /* ─ High-End Mesh Gradient Backgrounds ─ */
+  .bg-mesh-dating {
+    background-color: #060504;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(244, 63, 94, 0.18) 0px, transparent 55%),
+      radial-gradient(at 100% 0%, rgba(245, 158, 11, 0.12) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(244, 63, 94, 0.08) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(20, 18, 17, 1) 0px, transparent 80%),
+      radial-gradient(at 0% 100%, rgba(245, 158, 11, 0.12) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  .bg-mesh-study {
+    background-color: #060504;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 55%),
+      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
+      radial-gradient(at 50% 50%, rgba(20, 18, 17, 1) 0px, transparent 80%),
+      radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.08) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* ─ Deep Glassmorphism v2 ─ */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    @apply rounded-3xl shadow-2xl;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .glass-nav {
+    background: rgba(15, 13, 12, 0.8);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* ─ Premium Interactive Elements ─ */
+  .btn-premium-v2 {
+    @apply relative overflow-hidden px-7 py-3.5 rounded-2xl font-bold text-white transition-all duration-300 active:scale-95;
+    background: linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%);
+    box-shadow: 0 10px 30px -10px rgba(244, 63, 94, 0.6);
+  }
+
+  .btn-premium-v2::after {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(rgba(255, 255, 255, 0.2), transparent);
+  }
+
+  .btn-premium-v2:hover::after {
+    @apply opacity-100;
+  }
+
+  .btn-premium-v2:hover {
+    box-shadow: 0 15px 40px -10px rgba(244, 63, 94, 0.8);
+    transform: translateY(-2px);
+  }
+
+  .btn-study {
+    @apply btn-premium-v2;
+    background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.6);
+  }
+
+  /* ─ Mode Switcher 🛠️ ─ */
+  .mode-switch-track {
+    @apply relative w-48 h-10 bg-dark-900/50 rounded-full p-1 border border-white/5 flex items-center;
+  }
+
+  .mode-switch-thumb {
+    @apply absolute w-[calc(50%-4px)] h-8 rounded-full shadow-lg transition-all duration-500 ease-out z-10;
+  }
+
+  .mode-dating .mode-switch-thumb {
+    @apply translate-x-0;
+    background: linear-gradient(135deg, #f43f5e, #f59e0b);
+  }
+
+  .mode-study .mode-switch-thumb {
+    @apply translate-x-[calc(100%+0px)];
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+  }
+
+  .mode-btn {
+    @apply flex-1 text-center text-xs font-black uppercase tracking-widest z-20 transition-colors duration-300;
+  }
+
+  /* ─ Inputs ─ */
+  .input-v2 {
+    @apply w-full px-5 py-4 rounded-2xl font-medium bg-dark-900/50 border border-white/10 text-white placeholder:text-dark-500 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500/50;
+  }
+
+  /* ─ Badges ─ */
+  .badge-v2 {
+    @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border;
+  }
+
+  .badge-hot {
+    @apply badge-v2 bg-brand-500/10 text-brand-400 border-brand-500/20;
+  }
+
+  .badge-smart {
+    @apply badge-v2 bg-indigo-500/10 text-indigo-400 border-indigo-500/20;
+  }
+
+  /* ─ Animations ─ */
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.8;
+      transform: scale(1.02);
+    }
+  }
+
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-2;
+  }
+}
+
+/* ─ Legacy / Keep ─ */
+.swipe-card {
+  @apply absolute inset-0 rounded-3xl overflow-hidden shadow-2xl;
+  background: #1a1614;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #f43f5e 0%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
