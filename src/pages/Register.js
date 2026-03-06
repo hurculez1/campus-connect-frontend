@@ -179,7 +179,7 @@ const Register = () => {
       if (age < 18) return 'You must be 18 or older to join.';
     }
     if (step === 3) {
-      if (!formData.university) return 'Please select your university.';
+      if (!formData.university) return 'Please type or select your university or institute.';
     }
     return null;
   };
@@ -317,18 +317,6 @@ const Register = () => {
             </div>
           </div>
 
-          {/* Error */}
-          {currentErr && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mb-5 p-4 rounded-xl text-sm text-red-300 flex items-center gap-2"
-              style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}
-            >
-              <span className="text-lg">⚠️</span> {currentErr}
-            </motion.div>
-          )}
-
           <AnimatePresence mode="wait">
             {/* ── STEP 1: Account ── */}
             {step === 1 && (
@@ -408,6 +396,17 @@ const Register = () => {
                   )}
                 </div>
 
+                {currentErr && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg text-sm text-red-300 flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <span>⚠️</span> {currentErr}
+                  </motion.div>
+                )}
+
+                {currentErr && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mb-4 p-3 rounded-xl text-sm font-medium text-red-200 flex items-start gap-2 backdrop-blur-sm" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.05))', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <span className="text-base mt-0.5">⚠️</span> {currentErr}
+                  </motion.div>
+                )}
                 <button
                   type="button"
                   onClick={handleNext}
@@ -560,6 +559,12 @@ const Register = () => {
                   </div>
                 </div>
 
+                {currentErr && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-lg text-sm text-red-300 flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <span>⚠️</span> {currentErr}
+                  </motion.div>
+                )}
+
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setStep(1)} className="btn-glass flex-1">← Back</button>
                   <button type="button" onClick={handleNext} className="btn-brand flex-1">Continue →</button>
@@ -578,21 +583,27 @@ const Register = () => {
                 className="space-y-5"
               >
                 <div>
-                  <label className="block text-sm font-semibold text-dark-200 mb-2">University</label>
-                  <select value={formData.university} onChange={e => update('university', e.target.value)}
-                    className="input" required>
-                    <option value="">Select your university...</option>
+                  <label className="block text-sm font-semibold text-dark-200 mb-2">University / Institute</label>
+                  <input
+                    type="text"
+                    list="uni-list"
+                    value={formData.university}
+                    onChange={e => update('university', e.target.value)}
+                    className="input"
+                    placeholder="Type or select from list..."
+                    required
+                  />
+                  <datalist id="uni-list">
                     {universities?.map(u => (
-                      <option key={u.id} value={u.name}>{u.name}</option>
+                      <option key={u.id} value={u.name} />
                     ))}
-                    {/* Fallback list */}
                     {!universities && [
                       'Makerere University', 'Kyambogo University', 'Uganda Christian University',
                       'Mbarara University of Science and Technology', 'Ndejje University',
                       'Kampala International University', 'Busitema University',
                       'Gulu University', 'Muni University', 'Victoria University',
-                    ].map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                    ].map(u => <option key={u} value={u} />)}
+                  </datalist>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -627,7 +638,7 @@ const Register = () => {
                 </div>
 
                 {/* Terms */}
-                <div className="p-4 rounded-xl text-sm text-dark-300"
+                <div className="p-4 rounded-xl text-sm text-dark-300 mb-2"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <p>By creating an account you agree to our{' '}
                     <a href="#" className="text-brand-400 hover:text-brand-300">Terms of Service</a>{' '}
@@ -636,6 +647,12 @@ const Register = () => {
                     Compliant with Uganda Data Protection & Privacy Act 2019. 🇺🇬
                   </p>
                 </div>
+
+                {currentErr && (
+                  <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-3 mb-2 rounded-xl text-sm font-medium text-red-200 flex items-start gap-2 backdrop-blur-sm" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.05))', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <span className="text-base mt-0.5">⚠️</span> {currentErr}
+                  </motion.div>
+                )}
 
                 <div className="flex gap-4">
                   <button type="button" onClick={() => setStep(2)} className="glass-card-premium flex-1 py-5 font-bold hover:bg-white/10 transition-colors">← Back</button>

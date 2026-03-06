@@ -47,8 +47,13 @@ export const useAuthStore = create(
           set({ user, token, isAuthenticated: true, isLoading: false });
           return true;
         } catch (error) {
+          const errData = error.response?.data;
+          const errorMsg = errData?.errors
+            ? errData.errors.map(e => e.msg).join(', ')
+            : errData?.message || 'Registration failed';
+
           set({
-            error: error.response?.data?.message || 'Registration failed',
+            error: errorMsg,
             isLoading: false
           });
           return false;
