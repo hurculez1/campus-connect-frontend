@@ -275,7 +275,7 @@ const Pulse = () => {
             {/* Floating Create Button for mobile */}
             <button
                 onClick={() => setIsCreateOpen(true)}
-                className={`fixed bottom-32 right-6 w-16 h-16 rounded-full sm:hidden flex items-center justify-center text-white text-3xl shadow-[0_8px_30px_rgba(244,63,94,0.6)] z-[110] transition-all hover:scale-110 active:scale-90 ${isDating ? 'bg-brand-500' : 'bg-indigo-500'}`}
+                className={`fixed bottom-32 right-6 w-16 h-16 rounded-full flex items-center justify-center text-white text-3xl shadow-[0_8px_30px_rgba(244,63,94,0.6)] z-[110] transition-all hover:scale-110 active:scale-90 ${isDating ? 'bg-brand-500' : 'bg-indigo-500'}`}
             >
                 ✍️
             </button>

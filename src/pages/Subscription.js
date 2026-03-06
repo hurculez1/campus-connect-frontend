@@ -147,13 +147,7 @@ const Subscription = () => {
               className="relative glass-card p-6 flex flex-col"
               style={plan.border ? { border: plan.border } : {}}
             >
-              {plan.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="btn-brand text-xs px-4 py-1.5 rounded-full font-bold">
-                    🔥 Most Popular
-                  </span>
-                </div>
-              )}
+
               {isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="badge-success text-xs px-4 py-1.5">✓ Your Plan</span>
