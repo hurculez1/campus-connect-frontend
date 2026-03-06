@@ -55,7 +55,7 @@ root.render(
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
-        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || 'fallback-id.apps.googleusercontent.com'}>
+        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || '677372740241-grh3nlrt30i6ng1mppdjqct8qsl8qqdi.apps.googleusercontent.com'}>
           <BrowserRouter basename={process.env.PUBLIC_URL}>
             {/* Offline / unstable connection monitor — global */}
             <NetworkMonitor />
