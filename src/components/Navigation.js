@@ -66,7 +66,7 @@ const Navigation = () => {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 sm:hidden z-[100] w-full"
+        className="fixed bottom-0 left-0 right-0 z-[100] w-full"
       >
         {/* Fading gradient to obscure scrolling content right above the bar */}
         <div className="h-12 w-full bg-gradient-to-t from-dark-950 via-dark-950/80 to-transparent pointer-events-none" />

@@ -262,3 +262,20 @@
   background-clip: text;
   display: inline-block;
 }
+
+/* ─ Basic Light Theme Implementation using Filters ─ */
+html.light {
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #faf9f6; 
+}
+html.light img, 
+html.light video, 
+html.light [class*="badge-"],
+html.light [class*="bg-gradient-"],
+html.light [class*="text-gradient"] {
+  filter: invert(1) hue-rotate(180deg);
+}
+html.light .glass-card,
+html.light .glass-card-premium {
+  background-color: rgba(255,255,255,0.7);
+}

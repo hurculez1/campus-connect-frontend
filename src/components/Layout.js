@@ -1,12 +1,27 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { useThemeStore } from '../stores/themeStore';
 import Navigation from './Navigation';
 
 const Layout = () => {
   const { user, mode, toggleMode } = useAuthStore();
+  const { theme, setTheme } = useThemeStore();
 
   const isDating = mode === 'dating';
+  
+  // Theme logic application
+  React.useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    
+    if (theme === 'system') {
+      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      root.classList.add(systemTheme);
+    } else {
+      root.classList.add(theme);
+    }
+  }, [theme]);
 
   return (
     <div className={`min-h-screen transition-colors duration-700 ease-in-out ${isDating ? 'bg-mesh-dating mode-dating' : 'bg-mesh-study mode-study'}`}>
@@ -28,8 +43,21 @@ const Layout = () => {
                 </span>
               </Link>
 
+              {/* Appearance Mode Switcher (Dark/Light) */}
+              <div className="flex items-center gap-2">
+                <select 
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs font-bold text-dark-200 outline-none backdrop-blur-md cursor-pointer hover:bg-white/10 transition-colors"
+                >
+                  <option value="system">💻 System</option>
+                  <option value="dark">🌙 Dark</option>
+                  <option value="light">☀️ Light</option>
+                </select>
+              </div>
+
               {/* World Class Mode Switcher 🛠️ */}
-              <div className="hidden md:flex items-center">
+              <div className="hidden lg:flex items-center ml-2">
                 <button
                   onClick={toggleMode}
                   className="mode-switch-track cursor-pointer group"
@@ -101,7 +129,7 @@ const Layout = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 sm:pb-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
         <Outlet />
       </main>
 
