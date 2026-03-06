@@ -67,33 +67,43 @@ const Profile = () => {
 
         {/* Avatar + Info */}
         <div className="px-6 pb-6">
-          <div className="flex items-end gap-4 -mt-12 mb-4">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0"
-                style={{ border: '3px solid rgba(244,63,94,0.6)', background: 'linear-gradient(135deg, #f43f5e20, #f59e0b20)' }}>
-                {profile?.profile_photo_url ? (
-                  <img src={profile.profile_photo_url} alt={displayName} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl">
-                    {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
-                  </div>
-                )}
+          {/* Avatar row — on mobile: avatar left, edit button right, then name below */}
+          <div className="-mt-12 mb-3">
+            <div className="flex items-start justify-between">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0"
+                  style={{ border: '3px solid rgba(244,63,94,0.6)', background: 'linear-gradient(135deg, #f43f5e20, #f59e0b20)' }}>
+                  {profile?.profile_photo_url ? (
+                    <img src={profile.profile_photo_url} alt={displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl">
+                      {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm"
+                  style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
+                  title="Change photo"
+                >
+                  📷
+                </button>
               </div>
+              {/* Edit button — top-right of the row, always visible */}
               <button
-                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm"
-                style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
-                title="Change photo"
+                onClick={() => setIsEditing(e => !e)}
+                className="btn-glass text-sm px-4 py-2 mt-14"
               >
-                📷
+                {isEditing ? '✕ Cancel' : '✏️ Edit'}
               </button>
             </div>
-            <div className="flex-1 pb-1 min-w-0">
+            {/* Name and info BELOW avatar — never overlaps on any screen size */}
+            <div className="mt-3 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-black text-white">{displayName} {profile?.last_name || user?.lastName}</h1>
                 {verStatus === 'verified' && (
                   <span className="text-blue-400 text-sm" title="Verified Student">✓</span>
                 )}
-                {/* Subscription badge inline — never overlaps */}
                 {subTier === 'vip' && <span className="badge-vip text-xs">👑 VIP</span>}
                 {subTier === 'premium' && <span className="badge-premium text-xs">⭐ Premium</span>}
               </div>
@@ -102,12 +112,6 @@ const Profile = () => {
                 <p className="text-dark-500 text-xs mt-0.5">{displayCourse}{displayYear ? ` · Year ${displayYear}` : ''}</p>
               )}
             </div>
-            <button
-              onClick={() => setIsEditing(e => !e)}
-              className="btn-glass text-sm px-4 py-2 self-end"
-            >
-              {isEditing ? '✕ Cancel' : '✏️ Edit'}
-            </button>
           </div>
 
           {/* Bio / Edit Form */}
@@ -220,16 +224,25 @@ const Profile = () => {
       {/* ── Subscription ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="px-1"
+        className="glass-card p-5"
+        style={subTier === 'premium' ? { border: '1px solid rgba(244,63,94,0.4)' } : subTier === 'vip' ? { border: '1px solid rgba(245,158,11,0.4)' } : {}}
       >
         <div className="flex items-center justify-between">
-          <p className="text-dark-300 text-sm">
-            {subTier === 'free' ? '🆓 Free Plan · 50 swipes/day' :
-              subTier === 'premium' ? '⭐ Premium · Unlimited swipes' :
-                '👑 VIP · All features unlocked'}
-          </p>
+          <div>
+            <h2 className="text-white font-bold">Subscription</h2>
+            <p className="text-dark-400 text-sm capitalize">
+              {subTier === 'free' ? 'Free Plan · 50 swipes/day' :
+                subTier === 'premium' ? '⭐ Premium · Unlimited swipes' :
+                  '👑 VIP · All features unlocked'}
+            </p>
+          </div>
           {subTier === 'free' && (
             <a href="/subscription" className="btn-brand text-sm px-4 py-2">Upgrade ✨</a>
+          )}
+          {subTier !== 'free' && (
+            <span className={subTier === 'vip' ? 'badge-vip' : 'badge-premium'}>
+              {subTier === 'vip' ? '👑 VIP' : '⭐ Premium'}
+            </span>
           )}
         </div>
       </motion.div>
