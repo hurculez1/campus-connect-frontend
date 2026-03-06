@@ -51,7 +51,7 @@ const Profile = () => {
   const verStatus = profile?.verification_status || user?.verificationStatus || 'pending';
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5 pb-10">
 
       {/* ── Profile Header Card ── */}
       <motion.div
@@ -63,12 +63,6 @@ const Profile = () => {
           style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b, #7c3aed)' }}>
           <div className="absolute inset-0 opacity-30"
             style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 0%, transparent 60%)' }} />
-          {/* Subscription badge top-right */}
-          <div className="absolute top-4 right-4">
-            {subTier === 'vip' && <span className="badge-vip">👑 VIP</span>}
-            {subTier === 'premium' && <span className="badge-premium">⭐ Premium</span>}
-            {subTier === 'free' && <span className="badge-free">Free</span>}
-          </div>
         </div>
 
         {/* Avatar + Info */}
@@ -93,12 +87,15 @@ const Profile = () => {
                 📷
               </button>
             </div>
-            <div className="flex-1 pb-1">
-              <div className="flex items-center gap-2">
+            <div className="flex-1 pb-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-black text-white">{displayName} {profile?.last_name || user?.lastName}</h1>
                 {verStatus === 'verified' && (
                   <span className="text-blue-400 text-sm" title="Verified Student">✓</span>
                 )}
+                {/* Subscription badge inline — never overlaps */}
+                {subTier === 'vip' && <span className="badge-vip text-xs">👑 VIP</span>}
+                {subTier === 'premium' && <span className="badge-premium text-xs">⭐ Premium</span>}
               </div>
               <p className="text-dark-400 text-sm">🎓 {displayUni}</p>
               {displayCourse && (
