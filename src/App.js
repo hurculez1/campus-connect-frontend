@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Discover from './pages/Discover';
 import Matches from './pages/Matches';
 import Chat from './pages/Chat';
@@ -29,6 +30,10 @@ function App() {
       <Route
         path="/register"
         element={isAuthenticated ? <Navigate to="/discover" /> : <Register />}
+      />
+      <Route
+        path="/forgot-password"
+        element={isAuthenticated ? <Navigate to="/discover" /> : <ForgotPassword />}
       />
 
       {/* Protected Routes */}
