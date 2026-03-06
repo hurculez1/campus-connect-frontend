@@ -75,7 +75,7 @@ function App() {
       {/* Admin Routes */}
       <Route
         path="/admin/*"
-        element={user?.isAdmin ? <AdminDashboard /> : <Navigate to="/" />}
+        element={(user?.isAdmin || user?.isSuperAdmin) ? <AdminDashboard /> : <Navigate to="/login" />}
       />
     </Routes>
   );
