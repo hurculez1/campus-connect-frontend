@@ -134,8 +134,8 @@ const ProfileCard = ({ profile, mode }) => {
   const photos = profile.photos?.length ? profile.photos : [profile.profile_photo_url].filter(Boolean);
 
   return (
-    <div className={`swipe-card border-white/5 shadow-2xl overflow-hidden rounded-[2.5rem] bg-dark-900 group`}>
-      <div className="relative h-full" style={{ minHeight: 520 }}>
+    <div className={`swipe-card border-white/5 shadow-2xl overflow-hidden rounded-[2.5rem] bg-dark-900 group w-full h-full`}>
+      <div className="relative h-full w-full">
         {/* Photo tap zones */}
         {photos.length > 1 && (
           <div className="absolute inset-0 z-20 flex">
@@ -219,6 +219,16 @@ const ProfileCard = ({ profile, mode }) => {
             </div>
           )}
         </div>
+
+        {/* Floating Chat Button to Inbox */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); window.location.href = '/matches'; }}
+          onPointerDown={(e) => e.stopPropagation()} 
+          className={`absolute bottom-6 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 active:scale-95 border ${isDating ? 'bg-brand-500 shadow-brand-500/30 border-brand-400' : 'bg-indigo-500 shadow-indigo-500/30 border-indigo-400'}`}
+          aria-label="Go to Inbox"
+        >
+          <span className="text-xl">💬</span>
+        </button>
       </div>
     </div>
   );
@@ -329,7 +339,7 @@ const Discover = () => {
         )}
 
         {/* Swipe Stack */}
-        <div className="relative perspective-lg" style={{ height: 550 }}>
+        <div className="relative perspective-lg w-full h-[65vh] max-h-[500px] min-h-[420px]">
           {matches.slice(currentIndex, currentIndex + 3).map((match, stackIdx) => {
             const isTop = stackIdx === 0;
             return (
@@ -350,8 +360,8 @@ const Discover = () => {
           })}
         </div>
 
-        {/* Premium Action Controls */}
-        <div className="flex items-center justify-center gap-6 mt-10">
+        {/* Premium Action Controls placed immediately below cards */}
+        <div className="flex items-center justify-center gap-6 mt-4 z-50 relative pointer-events-auto">
           <button onClick={() => programmaticSwipe('left')}
             className="w-14 h-14 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-dark-400 hover:text-white hover:border-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group">
             <span className="text-2xl group-hover:rotate-12 transition-transform">✕</span>
