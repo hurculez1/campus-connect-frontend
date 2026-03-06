@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useQuery } from 'react-query';
+import toast from 'react-hot-toast';
 import api from '../utils/api';
 
 const STEPS = [
@@ -20,9 +22,29 @@ const INTERESTS = [
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register, error, clearError, isLoading } = useAuthStore();
+  const { register, googleLogin, error, clearError, isLoading } = useAuthStore();
   const [step, setStep] = useState(1);
   const [selectedInterests, setSelectedInterests] = useState([]);
+
+  const handleGoogleSignup = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      const result = await googleLogin(tokenResponse.access_token);
+      if (!result?.success) {
+        toast.error('Google sign-up failed. Please try again.');
+        return;
+      }
+      if (result.requireMoreData) {
+        // New user needs more info — redirect to login page which has the modal
+        toast('Please complete your profile to finish signing up!', { icon: '📋' });
+        navigate('/login');
+        return;
+      }
+      toast.success('Welcome to CampusConnect! 🎉');
+      navigate('/discover');
+    },
+    onError: () => toast.error('Google sign-up cancelled or failed.'),
+  });
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -303,6 +325,7 @@ const Register = () => {
 
                 <motion.button
                   type="button"
+                  onClick={() => handleGoogleSignup()}
                   whileHover={{ scale: 1.015, y: -2, boxShadow: '0 12px 40px rgba(0,0,0,0.18)' }}
                   whileTap={{ scale: 0.97 }}
                   className="w-full flex items-center gap-4 py-4 px-5 rounded-2xl font-semibold transition-all duration-200 relative overflow-hidden group"
