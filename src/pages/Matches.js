@@ -4,24 +4,19 @@ import { useQuery } from 'react-query';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../utils/api';
-import { DEMO_MATCHES, isDemoMode } from '../utils/demoData';
 
 const Matches = () => {
   const [activeTab, setActiveTab] = useState('matches');
 
   const { data: matchesData, isLoading: matchesLoading } = useQuery(
     'matches',
-    () => isDemoMode()
-      ? Promise.resolve({ matches: DEMO_MATCHES })
-      : api.get('/matches').then(res => res.data),
+    () => api.get('/matches').then(res => res.data),
     { staleTime: 30000, retry: false }
   );
 
   const { data: likesData, isLoading: likesLoading } = useQuery(
     'likes',
-    () => isDemoMode()
-      ? Promise.resolve({ likes: [{ id: 'l1' }, { id: 'l2' }, { id: 'l3' }] })
-      : api.get('/matches/likes').then(res => res.data),
+    () => api.get('/matches/likes').then(res => res.data),
     { staleTime: 30000, retry: false }
   );
 

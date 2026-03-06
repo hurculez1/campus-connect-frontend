@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
-import { isDemoMode, DEMO_USER } from '../utils/demoData';
 
 const Profile = () => {
   const { user, updateUser, logout } = useAuthStore();
@@ -14,33 +13,16 @@ const Profile = () => {
 
   const { data: profile, isLoading } = useQuery(
     'profile',
-    () => isDemoMode()
-      ? Promise.resolve({
-        ...DEMO_USER,
-        first_name: DEMO_USER.firstName,
-        last_name: DEMO_USER.lastName,
-        university: DEMO_USER.university,
-        course: DEMO_USER.course,
-        year_of_study: DEMO_USER.yearOfStudy,
-        bio: DEMO_USER.bio,
-        interests: JSON.stringify(DEMO_USER.interests),
-        photos: JSON.stringify([]),
-        verification_status: DEMO_USER.verificationStatus,
-        subscription_tier: DEMO_USER.subscriptionTier,
-        profile_photo_url: null,
-      })
-      : api.get('/users/profile').then(res => res.data.user),
+    () => api.get('/users/profile').then(res => res.data.user),
     { retry: false }
   );
 
   const updateMutation = useMutation(
-    (data) => isDemoMode()
-      ? Promise.resolve({ data })
-      : api.put('/users/profile', data),
+    (data) => api.put('/users/profile', data),
     {
       onSuccess: (response) => {
         queryClient.invalidateQueries('profile');
-        if (!isDemoMode()) updateUser(response.data);
+        updateUser(response.data);
         setIsEditing(false);
         toast.success('✅ Profile updated!');
       },

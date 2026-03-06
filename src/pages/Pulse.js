@@ -114,6 +114,11 @@ const Pulse = () => {
                 setIsCreateOpen(false);
                 setNewPost({ content: '', campus: user?.university || '', isAnonymous: false });
                 refetch();
+                import('react-hot-toast').then(module => module.toast.success('✨ Vibe shared successfully!'));
+            },
+            onError: (err) => {
+                console.error(err);
+                import('react-hot-toast').then(module => module.toast.error(err.response?.data?.message || 'Failed to post. Try again.'));
             }
         }
     );

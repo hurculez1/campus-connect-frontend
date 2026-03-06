@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
-import { DEMO_PROFILES, isDemoMode } from '../utils/demoData';
 import { useAuthStore } from '../stores/authStore';
 
 // ─── SwipeCard — custom drag-based swipe ────────
@@ -246,23 +245,16 @@ const Discover = () => {
 
   const { data: potentialMatches, isLoading, refetch } = useQuery(
     ['potentialMatches', mode],
-    () => isDemoMode()
-      ? Promise.resolve({
-        matches: isDating ? DEMO_PROFILES : DEMO_PROFILES.map(p => ({ ...p, course: 'Engineering', university: 'Makerere' })),
-        swipeLimit: { limit: 50, remaining: 42 }
-      })
-      : api.get(`/users/discover?mode=${mode}`).then(res => res.data),
+    () => api.get(`/users/discover?mode=${mode}`).then(res => res.data),
     { staleTime: 60000, retry: false }
   );
 
   const swipeMutation = useMutation(
-    (data) => isDemoMode()
-      ? new Promise(resolve => setTimeout(() => resolve({ data: { isMatch: Math.random() > 0.7, matchedUser: data.profile } }), 300))
-      : api.post('/matches/swipe', data),
+    (data) => api.post('/swipes', data),
     {
-      onSuccess: (response) => {
-        if (response.data.isMatch && response.data.matchedUser) {
-          setMatchCelebration(response.data.matchedUser);
+      onSuccess: (res, variables) => {
+        if (res.data.isMatch && res.data.matchedUser) {
+          setMatchCelebration(res.data.matchedUser);
         }
       },
     }
