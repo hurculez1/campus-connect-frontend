@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import Layout from './components/Layout';
@@ -17,7 +17,13 @@ import Pulse from './pages/Pulse';
 import AdminDashboard from './pages/admin/Dashboard';
 
 function App() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, refreshUser } = useAuthStore();
+
+  // Refresh admin flags from DB on every app load
+  useEffect(() => {
+    if (isAuthenticated) refreshUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Routes>

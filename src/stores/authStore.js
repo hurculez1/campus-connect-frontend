@@ -96,6 +96,21 @@ export const useAuthStore = create(
         localStorage.setItem('token', mockToken);
         set({ user: DEMO_USER, token: mockToken, isAuthenticated: true, error: null, isLoading: false });
       },
+
+      // Called once on app load — refreshes admin flags from DB in case they changed
+      refreshUser: async () => {
+        try {
+          const token = get().token;
+          if (!token || token === 'demo-token-campus-connect-2026') return;
+          const response = await api.get('/auth/me');
+          const freshUser = response.data.user;
+          set((state) => ({
+            user: { ...state.user, ...freshUser }
+          }));
+        } catch {
+          // silently fail — user stays logged in with cached data
+        }
+      },
     }),
     {
       name: 'auth-storage',
