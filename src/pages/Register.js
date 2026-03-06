@@ -146,6 +146,8 @@ const Register = () => {
     studentEmail: '',
   });
   const [stepError, setStepError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { data: universities } = useQuery('universities',
     () => api.get('/universities').then(res => res.data.universities),
@@ -351,9 +353,16 @@ const Register = () => {
                   <label className="block text-sm font-semibold text-dark-200 mb-2">Password</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400">🔒</span>
-                    <input type="password" value={formData.password}
+                    <input type={showPassword ? 'text' : 'password'} value={formData.password}
                       onChange={e => update('password', e.target.value)}
-                      className="input pl-10" placeholder="Min. 8 characters" required />
+                      className="input pl-10 pr-12" placeholder="Min. 8 characters" required />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white focus:outline-none"
+                    >
+                      {showPassword ? '👁' : '👁‍🗨'}
+                    </button>
                   </div>
                   <div className="flex gap-1 mt-2">
                     {/* Password strength indicator */}
@@ -382,10 +391,17 @@ const Register = () => {
                   <label className="block text-sm font-semibold text-dark-200 mb-2">Confirm password</label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-400">🔐</span>
-                    <input type="password" value={formData.confirmPassword}
+                    <input type={showConfirmPassword ? 'text' : 'password'} value={formData.confirmPassword}
                       onChange={e => update('confirmPassword', e.target.value)}
-                      className={`input pl-10 ${formData.confirmPassword && formData.password !== formData.confirmPassword ? 'input-error' : ''}`}
+                      className={`input pl-10 pr-12 ${formData.confirmPassword && formData.password !== formData.confirmPassword ? 'input-error' : ''}`}
                       placeholder="Repeat your password" required />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white focus:outline-none"
+                    >
+                      {showConfirmPassword ? '👁' : '👁‍🗨'}
+                    </button>
                   </div>
                   {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                     <p className="text-red-400 text-xs mt-1">Passwords don't match</p>
