@@ -224,8 +224,7 @@ const Profile = () => {
       {/* ── Subscription ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-        className="glass-card p-5"
-        style={subTier === 'premium' ? { border: '1px solid rgba(244,63,94,0.4)' } : subTier === 'vip' ? { border: '1px solid rgba(245,158,11,0.4)' } : {}}
+        className="px-1"
       >
         <div className="flex items-center justify-between">
           <div>
