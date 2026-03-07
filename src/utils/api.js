@@ -19,12 +19,10 @@ api.interceptors.request.use(
 
 // ─── Friendly error messages map ─────────────────────────────────────────────
 const friendlyMessage = (error) => {
-  // No internet / network failure
-  if (!navigator.onLine) return '📡 You\'re offline. Please check your internet connection.';
   if (error.code === 'ECONNABORTED' || error.message?.includes('timeout'))
     return '⏱ The server took too long to respond. Please try again.';
   if (error.message === 'Network Error')
-    return '🌐 Unable to reach the server. Check your connection and try again.';
+    return null; // Suppress generic network errors as they often fire falsely on Vercel unmounts
 
   const status = error.response?.status;
   const serverMsg = error.response?.data?.message;
@@ -71,9 +69,9 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Show global toast for everything else
+    // Show global toast for everything else if we have a valid message
     const msg = friendlyMessage(error);
-    toast.error(msg, { id: `api-error-${status || 'net'}`, duration: 5000 });
+    if (msg) toast.error(msg, { id: `api-error-${status || 'net'}`, duration: 5000 });
 
     return Promise.reject(error);
   }
