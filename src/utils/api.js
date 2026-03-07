@@ -29,13 +29,13 @@ const friendlyMessage = (error) => {
 
   switch (status) {
     case 400: return serverMsg || '⚠️ Some information you entered is invalid. Please check and try again.';
-    case 401: return '🔒 Your session has expired. Please log in again.';
+    case 401: return null; // Handled silently by component
     case 403: return '🚫 You don\'t have permission to do that.';
     case 404: return serverMsg || '🔍 We couldn\'t find what you were looking for.';
     case 409: return serverMsg || '⚠️ This account already exists. Try logging in instead.';
     case 422: return serverMsg || '⚠️ Please fill in all required fields correctly.';
     case 429: return '⏳ Too many attempts. Please wait a moment and try again.';
-    case 500: return '🛠 Something went wrong on our end. We\'re working on it!';
+    case 500: return null; // Suppress server errors — users don't need to know
     case 502:
     case 503:
     case 504: return '🔄 The server is temporarily unavailable. Please try again shortly.';
@@ -49,15 +49,8 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    // 401 — clear session and redirect
+    // 401 — just silently reject, let the component decide what to do
     if (status === 401) {
-      localStorage.removeItem('token');
-      // Only redirect if not already on auth pages
-      const isAuthPage = ['/login', '/register', '/'].includes(window.location.pathname);
-      if (!isAuthPage) {
-        toast.error('🔒 Session expired — please log in again.');
-        setTimeout(() => { window.location.href = '/login'; }, 1500);
-      }
       return Promise.reject(error);
     }
 
