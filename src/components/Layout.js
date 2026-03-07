@@ -78,9 +78,9 @@ const Layout = () => {
                     className={`w-12 h-12 rounded-2xl overflow-hidden relative transition-all duration-500 border-2 ${isDating ? 'border-brand-500/50 shadow-brand-500/20' : 'border-indigo-500/50 shadow-indigo-500/20'
                       }`}
                   >
-                    {user?.profilePhoto ? (
+                    {user?.profile_photo_url || user?.profilePhotoUrl || user?.profilePhoto ? (
                       <img
-                        src={user.profilePhoto}
+                        src={user.profile_photo_url || user.profilePhotoUrl || user.profilePhoto}
                         alt={user.firstName}
                         className="w-full h-full object-cover"
                       />
@@ -89,7 +89,7 @@ const Layout = () => {
                         className="w-full h-full flex items-center justify-center text-xl"
                         style={{ background: isDating ? 'linear-gradient(135deg, #f43f5e20, #f59e0b20)' : 'linear-gradient(135deg, #6366f120, #a855f720)' }}
                       >
-                        {user?.gender === 'female' ? '👨🏾' : '👨🏿'}
+                        {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
                       </div>
                     )}
                   </div>

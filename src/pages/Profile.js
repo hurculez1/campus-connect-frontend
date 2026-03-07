@@ -44,7 +44,11 @@ const Profile = () => {
     {
       onSuccess: (response) => {
         queryClient.invalidateQueries('profile');
-        updateUser({ ...user, profilePhotoUrl: response.data.photo.url });
+        // Sync the new photo URL into the global auth store so the header avatar updates too
+        updateUser({ 
+          profile_photo_url: response.data.photo.url,
+          profilePhotoUrl: response.data.photo.url 
+        });
         toast.success('📷 Photo uploaded successfully!');
       },
       onError: (err) => {
