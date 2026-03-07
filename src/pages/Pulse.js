@@ -5,7 +5,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 
 // ─── Post Card ──────────────────────────────────────────────────────────────
-const PostCard = ({ post, mode }) => {
+const PostCard = ({ post, mode, onLike }) => {
     const isDating = mode === 'dating';
     const isAnonymous = post.is_anonymous;
 
@@ -65,7 +65,7 @@ const PostCard = ({ post, mode }) => {
             {/* Footer / Actions */}
             <div className="flex items-center justify-between pt-4 border-t border-white/5">
                 <div className="flex items-center gap-6">
-                    <button className="flex items-center gap-2 group/btn">
+                    <button onClick={() => onLike(post.id)} className="flex items-center gap-2 group/btn">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
                             <span className="text-sm group-hover/btn:scale-125 transition-transform">🔥</span>
                         </div>
@@ -97,7 +97,14 @@ const Pulse = () => {
     const [newPost, setNewPost] = useState({ content: '', campus: '', isAnonymous: false });
 
     const isDating = mode === 'dating';
-    const campuses = ['All Campuses', 'Makerere', 'MUBS', 'Kyambogo', 'UCU', 'MUST', 'KIU'];
+    const { data: dynamicCampuses, isLoading: loadingCampuses } = useQuery(
+        'pulse-campuses',
+        async () => {
+            const res = await api.get('/pulse/campuses');
+            return res.data.campuses || [];
+        }
+    );
+    const campuses = ['All Campuses', ...(dynamicCampuses || ['Makerere', 'MUBS', 'Kyambogo', 'UCU', 'MUST', 'KIU'])];
 
     const { data, isLoading, refetch } = useQuery(
         ['pulse', filter, activeTab],
@@ -129,6 +136,18 @@ const Pulse = () => {
             ...newPost,
             campus: newPost.campus || user?.university || 'Makerere'
         });
+    };
+
+    const likeMutation = useMutation(
+        async (postId) => api.post(`/pulse/${postId}/like`),
+        {
+            onSuccess: () => refetch(),
+            onError: () => import('react-hot-toast').then(module => module.toast.error('Could not like post right now.'))
+        }
+    );
+
+    const handleLike = (postId) => {
+        likeMutation.mutate(postId);
     };
 
     return (
@@ -191,7 +210,7 @@ const Pulse = () => {
                 ) : (
                     <AnimatePresence>
                         {data?.map(post => (
-                            <PostCard key={post.id} post={post} mode={mode} />
+                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} />
                         ))}
                     </AnimatePresence>
                 )}

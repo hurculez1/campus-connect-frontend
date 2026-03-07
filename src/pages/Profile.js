@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -10,6 +10,7 @@ const Profile = () => {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
+  const fileInputRef = useRef(null);
 
   const { data: profile, isLoading } = useQuery(
     'profile',
@@ -26,8 +27,42 @@ const Profile = () => {
         setIsEditing(false);
         toast.success('✅ Profile updated!');
       },
+      onError: (err) => {
+        toast.error(err.response?.data?.message || 'Failed to update profile');
+      }
     }
   );
+
+  const photoUploadMutation = useMutation(
+    (file) => {
+      const form = new FormData();
+      form.append('photo', file);
+      return api.post('/users/photos', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    },
+    {
+      onSuccess: (response) => {
+        queryClient.invalidateQueries('profile');
+        updateUser({ ...user, profilePhotoUrl: response.data.photo.url });
+        toast.success('📷 Photo uploaded successfully!');
+      },
+      onError: (err) => {
+        toast.error(err.response?.data?.message || 'Failed to upload photo');
+      }
+    }
+  );
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File is too large. Max size is 5MB.');
+        return;
+      }
+      photoUploadMutation.mutate(file);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -81,12 +116,21 @@ const Profile = () => {
                     </div>
                   )}
                 </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handlePhotoChange} 
+                  accept="image/jpeg, image/png, image/webp" 
+                  className="hidden" 
+                />
                 <button
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoUploadMutation.isLoading}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm hover:scale-110 active:scale-95 transition-all"
                   style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
                   title="Change photo"
                 >
-                  📷
+                  {photoUploadMutation.isLoading ? '⏳' : '📷'}
                 </button>
               </div>
               {/* Edit button — top-right of the row, always visible */}
