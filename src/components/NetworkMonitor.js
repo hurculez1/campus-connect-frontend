@@ -26,7 +26,10 @@ const NetworkMonitor = () => {
       const ms = Date.now() - start;
       if (ms > 3000) {
         slowCount.current += 1;
-        if (slowCount.current >= 2) setIsUnstable(true);
+        if (slowCount.current >= 2) {
+          setIsUnstable(true);
+          setTimeout(() => setIsUnstable(false), 3000);
+        }
       } else {
         slowCount.current = 0;
         setIsUnstable(false);
@@ -34,7 +37,10 @@ const NetworkMonitor = () => {
     } catch {
       // timeout or fetch error — count as unstable
       slowCount.current += 1;
-      if (slowCount.current >= 2) setIsUnstable(true);
+      if (slowCount.current >= 2) {
+        setIsUnstable(true);
+        setTimeout(() => setIsUnstable(false), 3000);
+      }
     }
   };
 
