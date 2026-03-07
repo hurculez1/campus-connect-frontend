@@ -2,7 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  baseURL: 'https://api.quickercarts.com/api',
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 });

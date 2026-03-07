@@ -95,7 +95,7 @@ const Chat = () => {
   useEffect(() => {
     if (isDemoMode()) return; // no socket in demo mode
     const token = localStorage.getItem('token');
-    const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000', {
+    const newSocket = io('https://api.quickercarts.com', {
       auth: { token },
       reconnectionAttempts: 5,
     });
