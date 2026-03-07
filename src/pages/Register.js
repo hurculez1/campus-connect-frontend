@@ -172,7 +172,7 @@ const Register = () => {
       if (formData.password !== formData.confirmPassword) return 'Passwords do not match.';
     }
     if (step === 2) {
-      if (!formData.firstName || !formData.lastName) return 'Please enter your full name.';
+      if (!formData.firstName) return 'Please enter your first name.';
       if (!formData.dateOfBirth) return 'Date of birth is required.';
       if (!formData.gender) return 'Please select your gender.';
       const age = Math.floor((new Date() - new Date(formData.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000));
@@ -482,10 +482,10 @@ const Register = () => {
                       className="input" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-dark-200 mb-2">Last name</label>
+                    <label className="block text-sm font-semibold text-dark-200 mb-2">Last name <span className="text-dark-500 font-normal">(opt.)</span></label>
                     <input type="text" value={formData.lastName}
                       onChange={e => update('lastName', e.target.value)}
-                      className="input" required />
+                      className="input" />
                   </div>
                 </div>
 
