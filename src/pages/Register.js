@@ -387,9 +387,9 @@ const Register = () => {
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white focus:outline-none"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-200 transition-colors text-lg"
                     >
-                      {showConfirmPassword ? '👁' : '👁‍🗨'}
+                      {showConfirmPassword ? '🙈' : '👁️'}
                     </button>
                   </div>
                   {formData.confirmPassword && formData.password !== formData.confirmPassword && (
