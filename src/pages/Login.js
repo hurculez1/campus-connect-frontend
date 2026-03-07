@@ -175,7 +175,7 @@ const Login = () => {
               <img
                 src={`${process.env.PUBLIC_URL}/logo.png`}
                 alt="Campus Connect logo"
-                className="w-20 h-20 object-contain relative transition-transform duration-700 group-hover:scale-110"
+                className="w-32 h-32 object-contain relative transition-transform duration-700 group-hover:scale-110"
                 style={{ mixBlendMode: 'screen' }}
               />
             </div>

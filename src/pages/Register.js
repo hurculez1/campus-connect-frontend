@@ -238,7 +238,8 @@ const Register = () => {
               <img
                 src={`${process.env.PUBLIC_URL}/logo.png`}
                 alt="Campus Connect logo"
-                className="w-20 h-20 object-contain relative transition-transform duration-700 group-hover:scale-110"
+                className="w-32 h-32 object-contain relative transition-transform duration-700 group-hover:scale-110"
+                style={{ mixBlendMode: 'screen' }}
               />
             </div>
             <div className="space-y-1">
@@ -347,9 +348,9 @@ const Register = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white focus:outline-none"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-200 transition-colors text-lg"
                     >
-                      {showPassword ? '👁' : '👁‍🗨'}
+                      {showPassword ? '🙈' : '👁️'}
                     </button>
                   </div>
                   <div className="flex gap-1 mt-2">
