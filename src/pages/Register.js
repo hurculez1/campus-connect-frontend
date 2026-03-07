@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
@@ -148,6 +148,17 @@ const Register = () => {
   const [stepError, setStepError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(null);
+  const photoInputRef = useRef(null);
+
+  const handlePhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setStepError('Photo must be under 5MB.'); return; }
+    setProfilePhoto(file);
+    setProfilePhotoPreview(URL.createObjectURL(file));
+  };
 
   const { data: universities } = useQuery('universities',
     () => api.get('/universities').then(res => res.data.universities),
@@ -214,7 +225,20 @@ const Register = () => {
       studentEmail: formData.studentEmail,
     });
 
-    if (success) navigate('/verification');
+    if (success) {
+      // Upload photo if selected
+      if (profilePhoto && success.token) {
+        try {
+          const token = success.token || localStorage.getItem('token');
+          const form = new FormData();
+          form.append('photo', profilePhoto);
+          await api.post('/users/photos', form, {
+            headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
+          });
+        } catch (e) { /* photo upload is optional, ignore errors */ }
+      }
+      navigate('/verification');
+    }
   };
 
   const currentErr = stepError || error;
@@ -474,6 +498,37 @@ const Register = () => {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-5"
               >
+                {/* Optional Profile Photo */}
+                <div className="flex flex-col items-center gap-3 mb-2">
+                  <input
+                    type="file"
+                    ref={photoInputRef}
+                    onChange={handlePhotoSelect}
+                    accept="image/jpeg, image/png, image/webp"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="relative group"
+                  >
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center transition-all"
+                      style={{ background: 'rgba(244,63,94,0.1)', border: '2px dashed rgba(244,63,94,0.4)' }}>
+                      {profilePhotoPreview ? (
+                        <img src={profilePhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-3xl">📷</span>
+                          <span className="text-dark-500 text-[9px] font-black uppercase tracking-widest">Add Photo</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm"
+                      style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}>✚</div>
+                  </button>
+                  <p className="text-dark-500 text-[10px] font-medium">Profile photo — optional but recommended ✨</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-dark-200 mb-2">First name</label>

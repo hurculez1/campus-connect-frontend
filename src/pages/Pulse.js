@@ -5,7 +5,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 
 // ─── Post Card ──────────────────────────────────────────────────────────────
-const PostCard = ({ post, mode, onLike }) => {
+const PostCard = ({ post, mode, onLike, onMessage }) => {
     const isDating = mode === 'dating';
     const isAnonymous = post.is_anonymous;
 
@@ -14,7 +14,7 @@ const PostCard = ({ post, mode, onLike }) => {
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass-card-premium p-8 mb-6 relative overflow-hidden group transition-all duration-500 hover:shadow-2xl ${isAnonymous ? 'border-indigo-500/30 shadow-indigo-500/10' : 'border-white/5 shadow-white/5'
+            className={`glass-card-premium p-5 mb-4 relative overflow-hidden group transition-all duration-500 hover:shadow-2xl ${isAnonymous ? 'border-indigo-500/30 shadow-indigo-500/10' : 'border-white/5 shadow-white/5'
                 }`}
         >
             {/* Ghost background for anonymous posts */}
@@ -26,17 +26,17 @@ const PostCard = ({ post, mode, onLike }) => {
 
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl overflow-hidden shadow-2xl border-2 transition-transform duration-500 group-hover:scale-110 ${isAnonymous ? 'border-indigo-500/50 bg-indigo-900/30' : isDating ? 'border-brand-500/50 bg-brand-500/20' : 'border-indigo-500/50 bg-indigo-500/20'
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl overflow-hidden shadow-2xl border-2 transition-transform duration-500 group-hover:scale-110 ${isAnonymous ? 'border-indigo-500/50 bg-indigo-900/30' : isDating ? 'border-brand-500/50 bg-brand-500/20' : 'border-indigo-500/50 bg-indigo-500/20'
                         }`}>
                         {isAnonymous ? (
-                            <div className="w-full h-full flex items-center justify-center text-2xl drop-shadow-lg">👻</div>
+                            <div className="w-full h-full flex items-center justify-center text-xl drop-shadow-lg">👻</div>
                         ) : (
                             <img src={post.authorAvatar || `https://ui-avatars.com/api/?name=${post.authorName || post.first_name}&background=random`} alt={post.authorName} className="w-full h-full object-cover" />
                         )}
                     </div>
                     <div>
-                        <h4 className="text-white font-black text-base tracking-tight leading-none mb-1.5 flex items-center gap-2">
+                        <h4 className="text-white font-black text-sm tracking-tight leading-none mb-1 flex items-center gap-2">
                             {isAnonymous ? 'Ghost User' : post.first_name || 'Campus Student'}
                             {!isAnonymous && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
                         </h4>
@@ -58,12 +58,12 @@ const PostCard = ({ post, mode, onLike }) => {
             </div>
 
             {/* Content */}
-            <p className="text-dark-100 text-[17px] leading-relaxed mb-8 font-medium tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">
+            <p className="text-dark-100 text-[15px] leading-relaxed mb-4 mt-2 font-medium tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">
                 {post.content}
             </p>
 
             {/* Footer / Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-white/5">
+            <div className="flex items-center justify-between pt-3 border-t border-white/5">
                 <div className="flex items-center gap-6">
                     <button onClick={() => onLike(post.id)} className="flex items-center gap-2 group/btn">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
@@ -72,11 +72,11 @@ const PostCard = ({ post, mode, onLike }) => {
                         <span className="text-dark-400 text-xs font-black uppercase tracking-widest group-hover/btn:text-white transition-colors">{post.likes_count || 0}</span>
                     </button>
 
-                    <button className="flex items-center gap-2 group/btn">
+                    <button onClick={() => onMessage(post.user_id)} className="flex items-center gap-2 group/btn">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-blue-500/20 group-hover/btn:scale-110 active:scale-95`}>
                             <span className="text-sm group-hover/btn:scale-125 transition-transform">💬</span>
                         </div>
-                        <span className="text-dark-400 text-xs font-black uppercase tracking-widest group-hover/btn:text-white transition-colors">{post.comments_count || 0}</span>
+                        <span className="text-dark-400 text-xs font-black uppercase tracking-widest group-hover/btn:text-white transition-colors">Message</span>
                     </button>
                 </div>
 
@@ -150,6 +150,19 @@ const Pulse = () => {
         likeMutation.mutate(postId);
     };
 
+    const handleGoToChat = async (userId) => {
+        if (!userId) {
+             window.location.href = '/matches';
+             return;
+        }
+        try {
+            const res = await api.post('/matches/direct', { targetUserId: userId });
+            window.location.href = `/chat/${res.data.matchId}`;
+        } catch (err) {
+            window.location.href = '/matches';
+        }
+    };
+
     return (
         <div className="max-w-2xl mx-auto px-4 sm:px-0">
             {/* Search & Tabs Header */}
@@ -210,7 +223,7 @@ const Pulse = () => {
                 ) : (
                     <AnimatePresence>
                         {data?.map(post => (
-                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} />
+                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onMessage={handleGoToChat} />
                         ))}
                     </AnimatePresence>
                 )}

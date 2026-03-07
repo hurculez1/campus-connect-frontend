@@ -161,6 +161,20 @@ const Profile = () => {
           {/* Bio / Edit Form */}
           {isEditing ? (
             <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-dark-200 mb-2">First Name</label>
+                  <input type="text" value={formData.first_name ?? displayName}
+                    onChange={e => setFormData({ ...formData, first_name: e.target.value })}
+                    className="input" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-dark-200 mb-2">Last Name</label>
+                  <input type="text" value={formData.last_name ?? (profile?.last_name || user?.lastName || '')}
+                    onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                    className="input" />
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-dark-200 mb-2">Bio</label>
                 <textarea
@@ -202,12 +216,11 @@ const Profile = () => {
       {/* ── Stats Row ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-        className="grid grid-cols-3 gap-3"
+        className="grid grid-cols-2 gap-3"
       >
         {[
-          { val: '127', label: 'Profile views', icon: '👀' },
-          { val: '34', label: 'Likes given', icon: '❤️' },
-          { val: '3', label: 'Matches', icon: '🎉' },
+          { val: profile?.match_count || '0', label: 'Matches', icon: '🎉' },
+          { val: profile?.message_count || '0', label: 'Messages Sent', icon: '💬' },
         ].map(({ val, label, icon }) => (
           <div key={label} className="glass-card p-4 text-center">
             <div className="text-2xl mb-1">{icon}</div>
