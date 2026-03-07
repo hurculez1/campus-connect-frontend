@@ -6,7 +6,6 @@ import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App';
-import NetworkMonitor from './components/NetworkMonitor';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -57,8 +56,6 @@ root.render(
       <HelmetProvider>
         <GoogleOAuthProvider clientId="677372740241-grh3nlrt30i6ng1mppdjqct8qsl8qqdi.apps.googleusercontent.com">
           <BrowserRouter basename={process.env.PUBLIC_URL}>
-            {/* Offline / unstable connection monitor — global */}
-            <NetworkMonitor />
             <App />
             <Toaster
               position="top-center"
