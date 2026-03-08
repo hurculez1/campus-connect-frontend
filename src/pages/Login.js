@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../stores/authStore';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 const UNIVERSITIES = [
@@ -12,26 +13,148 @@ const UNIVERSITIES = [
   'Ndejje University', 'Cavendish University Uganda', 'Other',
 ];
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: 80 }, (_, i) => String(currentYear - 18 - i));
+
+const Drum = ({ items, selected, onSelect, label }) => {
+  const ref = React.useRef(null);
+  const ITEM_H = 44;
+  const idx = items.indexOf(selected);
+
+  React.useEffect(() => {
+    if (ref.current) ref.current.scrollTop = idx * ITEM_H;
+  }, []); // eslint-disable-line
+
+  const handleScroll = () => {
+    if (!ref.current) return;
+    const i = Math.round(ref.current.scrollTop / ITEM_H);
+    const clamped = Math.max(0, Math.min(i, items.length - 1));
+    if (items[clamped] !== selected) onSelect(items[clamped]);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1 flex-1">
+      <span className="text-dark-500 text-[10px] font-bold uppercase tracking-widest mb-1">{label}</span>
+      <div className="relative w-full" style={{ height: ITEM_H * 3 }}>
+        <div className="absolute left-0 right-0 pointer-events-none z-10 rounded-xl"
+          style={{ top: ITEM_H, height: ITEM_H, background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)' }} />
+        <div className="absolute inset-x-0 top-0 h-10 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(15,13,12,1), transparent)' }} />
+        <div className="absolute inset-x-0 bottom-0 h-10 z-10 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, rgba(15,13,12,1), transparent)' }} />
+        <div
+          ref={ref}
+          onScroll={handleScroll}
+          className="overflow-y-scroll h-full"
+          style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div style={{ height: ITEM_H }} />
+          {items.map(item => (
+            <div key={item}
+              onClick={() => {
+                const i = items.indexOf(item);
+                ref.current.scrollTo({ top: i * ITEM_H, behavior: 'smooth' });
+                onSelect(item);
+              }}
+              style={{ height: ITEM_H, scrollSnapAlign: 'center' }}
+              className={`flex items-center justify-center text-base font-bold cursor-pointer transition-colors select-none
+                ${item === selected ? 'text-white' : 'text-dark-600'}`}
+            >
+              {item}
+            </div>
+          ))}
+          <div style={{ height: ITEM_H }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DateRoller = ({ value, onChange }) => {
+  const parts = value ? value.split('-') : [];
+  const [year, setYear] = React.useState(parts[0] || YEARS[0]);
+  const [month, setMonth] = React.useState(parts[1] ? MONTHS[parseInt(parts[1]) - 1] : MONTHS[0]);
+  const [day, setDay] = React.useState(parts[2] || DAYS[0]);
+
+  React.useEffect(() => {
+    const m = String(MONTHS.indexOf(month) + 1).padStart(2, '0');
+    onChange(`${year}-${m}-${day}`);
+  }, [day, month, year]); // eslint-disable-line
+
+  return (
+    <div className="flex gap-2 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <Drum items={DAYS} selected={day} onSelect={setDay} label="Day" />
+      <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <Drum items={MONTHS} selected={month} onSelect={setMonth} label="Month" />
+      <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <Drum items={YEARS} selected={year} onSelect={setYear} label="Year" />
+    </div>
+  );
+};
+
 /* ───────────────────────── Extra-Info Modal ───────────────────────── */
 const GoogleExtraInfoModal = ({ pendingData, onComplete, onClose }) => {
-  const [form, setForm] = useState({ university: '', dateOfBirth: '', gender: '' });
+  const [form, setForm] = useState({ 
+    university: '', 
+    dateOfBirth: '', 
+    gender: '',
+    email: pendingData.email || ''
+  });
+  const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const { googleLogin } = useAuthStore();
+  const fileInputRef = React.useRef(null);
+  const { googleLogin, updateUser } = useAuthStore();
   const navigate = useNavigate();
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File is too large. Max size is 5MB.');
+        return;
+      }
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    // 1. Complete Google Signup
     const result = await googleLogin(pendingData.token, {
       university: form.university,
       dateOfBirth: form.dateOfBirth,
       gender: form.gender,
+      customEmail: form.email !== pendingData.email ? form.email : undefined
     });
-    setLoading(false);
+
     if (result.success) {
+      // 2. If photo selected, upload it now that we are logged in
+      if (photo) {
+        try {
+          const formData = new FormData();
+          formData.append('photo', photo);
+          const uploadRes = await api.post('/users/photos', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          // Update local store with the new photo URL
+          updateUser({ profile_photo_url: uploadRes.data.photo.url });
+        } catch (err) {
+          console.error('Photo upload failed:', err);
+          toast.error('Account created, but photo upload failed. You can set it later in Profile.');
+        }
+      }
+
+      setLoading(false);
       toast.success(`🎉 Welcome aboard, ${pendingData.name}!`);
       navigate('/discover');
     } else {
+      setLoading(false);
       toast.error('Something went wrong. Please try again.');
     }
   };
@@ -48,18 +171,44 @@ const GoogleExtraInfoModal = ({ pendingData, onComplete, onClose }) => {
         className="w-full max-w-md bg-dark-900 border border-white/10 rounded-[2.5rem] p-8 shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        {/* Avatar from Google */}
+        {/* Avatar Area */}
         <div className="text-center mb-6">
-          {pendingData.picture && (
-            <img src={pendingData.picture} alt={pendingData.name}
-              className="w-16 h-16 rounded-full mx-auto mb-3 border-2 border-brand-500/50"
-            />
-          )}
-          <h2 className="text-white font-black text-2xl tracking-tight">Almost there, {pendingData.name}! 👋</h2>
+          <div className="relative inline-block group">
+            <div className="absolute -inset-1 bg-gradient-to-tr from-brand-500 to-amber-500 rounded-full blur opacity-40 group-hover:opacity-60 transition duration-500" />
+            <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-white/10 shadow-xl bg-dark-800">
+              <img 
+                src={photoPreview || pendingData.picture} 
+                alt={pendingData.name}
+                className="w-full h-full object-cover"
+              />
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+              >
+                CHANGE PHOTO
+              </button>
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
+          </div>
+          <h2 className="text-white font-black text-2xl tracking-tight mt-4">Almost there, {pendingData.name}! 👋</h2>
           <p className="text-dark-400 text-sm mt-1">We need a few more details to complete your profile.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-semibold text-dark-200 mb-2">✉️ Profile Email</label>
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="input w-full"
+              placeholder="Your email address"
+            />
+            <p className="text-dark-600 text-[10px] mt-1.5 px-1">This email will be used for your account profile.</p>
+          </div>
           {/* University */}
           <div>
             <label className="block text-sm font-semibold text-dark-200 mb-2">🎓 University</label>
@@ -74,18 +223,14 @@ const GoogleExtraInfoModal = ({ pendingData, onComplete, onClose }) => {
             </select>
           </div>
 
-          {/* Date of Birth */}
+          {/* Date of Birth - Scrolling Wheel */}
           <div>
             <label className="block text-sm font-semibold text-dark-200 mb-2">🎂 Date of Birth</label>
-            <input
-              type="date"
-              required
+            <DateRoller
               value={form.dateOfBirth}
-              onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
-              className="input w-full"
-              max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+              onChange={val => setForm({ ...form, dateOfBirth: val })}
             />
-            <p className="text-dark-600 text-xs mt-1">You must be 18+ to use CampusConnect</p>
+            <p className="text-dark-600 text-[10px] mt-2">You must be 18+ to use CampusConnect 🔞</p>
           </div>
 
           {/* Gender */}

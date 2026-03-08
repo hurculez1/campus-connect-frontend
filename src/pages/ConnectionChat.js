@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
-import { DEMO_MESSAGES, DEMO_MATCHES, isDemoMode } from '../utils/demoData';
 
 const ICEBREAKERS = [
   '☕ Coffee or tea while studying?',
@@ -45,8 +44,8 @@ const groupMessagesByDate = (msgs) => {
   return groups;
 };
 
-const Chat = () => {
-  const { matchId } = useParams();
+const ConnectionChat = () => {
+  const { connectionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -58,51 +57,27 @@ const Chat = () => {
   const [otherTyping, setOtherTyping] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
   const [showIcebreakers, setShowIcebreakers] = useState(false);
-  const [matchInfo, setMatchInfo] = useState(null);
+  const [connectionInfo, setConnectionInfo] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const typingTimeoutRef = useRef(null);
 
-  const { data: messages, isLoading } = useQuery(
-    ['messages', matchId],
-    () => isDemoMode()
-      ? Promise.resolve(DEMO_MESSAGES)
-      : api.get(`/chat/${matchId}/messages`).then(res => res.data.messages),
+  const { data: chatData, isLoading } = useQuery(
+    ['connectionMessages', connectionId],
+    () => api.get(`/chat/connection/${connectionId}/messages`).then(res => res.data),
     { staleTime: 10000, retry: false }
   );
 
   useEffect(() => {
-    if (isDemoMode()) {
-      const demoMatch = DEMO_MATCHES.find(m => m.id === matchId) || DEMO_MATCHES[0];
-      if (demoMatch) setMatchInfo(demoMatch);
-      return;
+    if (chatData?.connection) {
+      setConnectionInfo(chatData.connection);
     }
-
-    const fetchMatch = async () => {
-      try {
-        const res = await api.get('/matches');
-        const m = res.data.matches?.find(m => String(m.id) === String(matchId));
-        if (m) {
-          setMatchInfo(m);
-        } else {
-          // Fallback: Fetch single match info directly
-          const singleRes = await api.get(`/matches/${matchId}`);
-          if (singleRes.data.match) {
-            setMatchInfo(singleRes.data.match);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load match info:', err);
-      }
-    };
-
-    fetchMatch();
-  }, [matchId]);
+  }, [chatData]);
 
   const sendMessageMutation = useMutation(
-    (content) => api.post(`/chat/${matchId}/messages`, { content }),
+    (content) => api.post(`/chat/connection/${connectionId}/messages`, { content }),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries(['messages', matchId]);
+        queryClient.invalidateQueries(['connectionMessages', connectionId]);
         setMessage('');
         setShowEmojis(false);
         setShowIcebreakers(false);
@@ -111,36 +86,38 @@ const Chat = () => {
   );
 
   useEffect(() => {
-    if (isDemoMode()) return; // no socket in demo mode
     const token = localStorage.getItem('token');
-    // Use the same host as the API but with socket protocol
     const socketUrl = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : window.location.origin;
     const newSocket = io(socketUrl, {
       auth: { token },
       reconnectionAttempts: 5,
     });
-    newSocket.on('connect', () => newSocket.emit('join_match', matchId));
-    newSocket.on('new_message', () => queryClient.invalidateQueries(['messages', matchId]));
+    newSocket.on('connect', () => {
+      newSocket.emit('join_connection', connectionId);
+    });
+    newSocket.on('new_connection_message', () => {
+      queryClient.invalidateQueries(['connectionMessages', connectionId]);
+    });
     newSocket.on('typing', ({ userId, typing }) => {
       if (userId !== user?.id) setOtherTyping(typing);
     });
     setSocket(newSocket);
     return () => {
-      newSocket.emit('leave_match', matchId);
+      newSocket.emit('leave_connection', connectionId);
       newSocket.close();
     };
-  }, [matchId, queryClient, user?.id]);
+  }, [connectionId, queryClient, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, otherTyping]);
+  }, [chatData?.messages, otherTyping]);
 
   const handleSend = (e) => {
     e?.preventDefault();
     const text = message.trim();
     if (!text) return;
     sendMessageMutation.mutate(text);
-    socket?.emit('typing', { matchId, typing: false });
+    socket?.emit('typing', { connectionId, typing: false });
   };
 
   const handleInput = (e) => {
@@ -148,12 +125,12 @@ const Chat = () => {
     if (!socket) return;
     if (!isTyping) {
       setIsTyping(true);
-      socket.emit('typing', { matchId, typing: true });
+      socket.emit('typing', { connectionId, typing: true });
     }
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket.emit('typing', { matchId, typing: false });
+      socket?.emit('typing', { connectionId, typing: false });
     }, 1500);
   };
 
@@ -175,8 +152,8 @@ const Chat = () => {
     inputRef.current?.focus();
   };
 
-  const grouped = groupMessagesByDate(messages);
-  const otherUser = matchInfo; // Backend returns flat fields now
+  const grouped = groupMessagesByDate(chatData?.messages || []);
+  const otherUser = connectionInfo?.otherUser;
 
   if (isLoading) {
     return (
@@ -193,7 +170,7 @@ const Chat = () => {
       {/* ─ Header ─ */}
       <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
         style={{ background: 'rgba(15,13,12,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => navigate('/matches')}
+        <button onClick={() => navigate('/discover')}
           className="text-dark-400 hover:text-white transition-colors p-1">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -212,13 +189,12 @@ const Chat = () => {
               </div>
             )}
           </div>
-          {/* Online dot */}
           <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-dark-950 bg-green-500" />
         </div>
 
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-white truncate">
-            {otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Chat'}
+            {otherUser ? `${otherUser.first_name} ${otherUser.last_name || ''}` : 'Chat'}
           </h2>
           <p className="text-xs text-dark-400 truncate">
             {otherUser?.university || 'Online'}
@@ -231,10 +207,6 @@ const Chat = () => {
             <span className="text-lg leading-none">📞</span>
             <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">Call</span>
           </button>
-          <button className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-dark-400 hover:text-white hover:bg-white/10 transition-all">
-            <span className="text-lg leading-none">⚙️</span>
-            <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">Settings</span>
-          </button>
         </div>
       </div>
 
@@ -242,10 +214,10 @@ const Chat = () => {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
         style={{ background: 'rgba(15,13,12,0.6)' }}>
 
-        {messages?.length === 0 && (
+        {(!chatData?.messages || chatData.messages.length === 0) && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div className="text-6xl mb-4">👋</div>
-            <h3 className="text-white font-bold text-lg mb-2">You matched! Say hello</h3>
+            <h3 className="text-white font-bold text-lg mb-2">Start a conversation!</h3>
             <p className="text-dark-400 text-sm mb-6">Break the ice with a message or try one of our prompts</p>
             <button onClick={() => setShowIcebreakers(true)}
               className="btn-brand px-6 py-3 text-sm">
@@ -281,18 +253,12 @@ const Chat = () => {
                 </div>
                 <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-600' : 'text-dark-600'}`}>
                   <span>{formatMsgTime(msg.created_at)}</span>
-                  {isMe && (
-                    <span className={msg.is_read ? 'text-brand-400' : 'text-dark-600'}>
-                      {msg.is_read ? '✓✓' : '✓'}
-                    </span>
-                  )}
                 </div>
               </div>
             </motion.div>
           );
         })}
 
-        {/* Typing indicator */}
         <AnimatePresence>
           {otherTyping && (
             <motion.div
@@ -370,7 +336,6 @@ const Chat = () => {
       <div className="flex-shrink-0 px-4 py-3"
         style={{ background: 'rgba(15,13,12,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <form onSubmit={handleSend} className="flex items-end gap-3">
-          {/* Toolbar buttons */}
           <div className="flex gap-1 mb-0.5">
             <button
               type="button"
@@ -394,7 +359,6 @@ const Chat = () => {
             </button>
           </div>
 
-          {/* Text input */}
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -413,7 +377,6 @@ const Chat = () => {
             />
           </div>
 
-          {/* Send button */}
           <button
             type="submit"
             disabled={!message.trim() || sendMessageMutation.isLoading}
@@ -438,4 +401,4 @@ const Chat = () => {
   );
 };
 
-export default Chat;
+export default ConnectionChat;

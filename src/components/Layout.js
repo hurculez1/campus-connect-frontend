@@ -34,33 +34,32 @@ const Layout = () => {
 
               <Link to="/discover" className="flex items-center gap-2.5 group">
                 <img
-                  src={`${process.env.PUBLIC_URL}/logo.png`}
+                  src="/logo.png"
                   alt="Campus Connect Logo"
-                  className={`w-16 h-16 object-contain transition-all duration-700 hover:scale-110 active:scale-95 ${isDating ? 'drop-shadow-[0_0_15px_rgba(244,63,94,0.7)]' : 'drop-shadow-[0_0_15px_rgba(99,102,241,0.7)] filter hue-rotate-[180deg]'}`}
-                  style={{ mixBlendMode: 'screen' }}
+                  className={`w-12 h-12 sm:w-16 sm:h-16 object-contain transition-all duration-700 hover:scale-110 active:scale-95 ${isDating ? 'drop-shadow-[0_0_15px_rgba(244,63,94,0.7)]' : 'drop-shadow-[0_0_15px_rgba(99,102,241,0.7)]'}`}
                 />
-                <span className="hidden lg:block text-white font-black text-xl tracking-tight">
+                <span className="hidden sm:block text-white font-black text-xs lg:text-xl tracking-tight">
                   Campus<span className={isDating ? 'text-brand-400' : 'text-indigo-400'}>Connect</span>
                 </span>
               </Link>
 
 
               {/* World Class Mode Switcher 🛠️ */}
-              <div className="hidden lg:flex items-center ml-2">
+              <div className="flex items-center ml-1 sm:ml-2">
                 <button
                   onClick={toggleMode}
                   className="mode-switch-track cursor-pointer group"
                   aria-label="Toggle Study/Dating Mode"
                 >
                   <div className="mode-switch-thumb" />
-                  <span className={`mode-btn ${isDating ? 'text-white' : 'text-dark-500'}`}>Dating</span>
-                  <span className={`mode-btn ${!isDating ? 'text-white' : 'text-dark-500'}`}>Study</span>
+                  <span className={`mode-btn text-[8px] sm:text-[10px] ${isDating ? 'text-white' : 'text-dark-500'}`}>Dating</span>
+                  <span className={`mode-btn text-[8px] sm:text-[10px] ${!isDating ? 'text-white' : 'text-dark-500'}`}>Study</span>
                 </button>
               </div>
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {/* Upgrade badge for free users */}
               {user?.subscriptionTier === 'free' && (
                 <Link
@@ -74,13 +73,13 @@ const Layout = () => {
                 </Link>
               )}
 
-              {/* User avatar */}
-              <Link to="/profile" className="flex items-center gap-3 group">
-                <div className="hidden sm:block text-right">
-                  <p className="text-white text-sm font-bold leading-tight">{user?.firstName}</p>
-                  <div className="flex items-center justify-end gap-1">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isDating ? 'bg-brand-400' : 'bg-indigo-400'} animate-pulse`} />
-                    <p className="text-dark-400 text-[10px] font-black uppercase tracking-tighter">{user?.subscriptionTier || 'free'}</p>
+              {/* User info */}
+              <Link to="/profile" className="flex items-center gap-1.5 sm:gap-3 group">
+                <div className="text-right">
+                  <p className="text-white text-[10px] sm:text-sm font-bold leading-tight">{user?.firstName}</p>
+                  <div className="flex items-center justify-end gap-0.5 sm:gap-1">
+                    <div className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${isDating ? 'bg-brand-400' : 'bg-indigo-400'} animate-pulse`} />
+                    <p className="text-dark-400 text-[8px] sm:text-[10px] font-black uppercase tracking-tighter">{user?.subscriptionTier || 'free'}</p>
                   </div>
                 </div>
                 <div className="relative group/avatar">
@@ -103,12 +102,6 @@ const Layout = () => {
                         {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
                       </div>
                     )}
-                  </div>
-                  <div
-                    className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-dark-950 flex items-center justify-center ${isDating ? 'bg-brand-500' : 'bg-indigo-500'
-                      }`}
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
                   </div>
                 </div>
               </Link>

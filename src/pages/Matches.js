@@ -4,13 +4,21 @@ import { useQuery } from 'react-query';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../utils/api';
+import ImageModal from '../components/ImageModal';
 
 const Matches = () => {
   const [activeTab, setActiveTab] = useState('chats');
+  const [fullscreenImage, setFullscreenImage] = useState(null);
 
   const { data: matchesData, isLoading: matchesLoading } = useQuery(
     'matches',
     () => api.get('/matches').then(res => res.data),
+    { staleTime: 30000, retry: false }
+  );
+
+  const { data: connectionsData, isLoading: connectionsLoading } = useQuery(
+    'connections',
+    () => api.get('/chat/connections').then(res => res.data),
     { staleTime: 30000, retry: false }
   );
 
@@ -21,12 +29,24 @@ const Matches = () => {
   );
 
   const allMatches = matchesData?.matches || [];
-  const likes = likesData?.users || []; // Backend returns 'users' for likes
+  const allConnections = connectionsData?.connections || [];
+  const likes = likesData?.users || [];
+  const newLikesCount = likesData?.newCount || 0;
   
-  const chats = allMatches.filter(m => m.last_message);
+  // Mark likes as seen when visiting the tab
+  React.useEffect(() => {
+    if (activeTab === 'likes' && newLikesCount > 0) {
+      api.post('/matches/seen-likes').catch(err => console.error('Failed to mark likes as seen', err));
+    }
+  }, [activeTab, newLikesCount]);
+  
+  // Show both in primary list but keep the horizontal row for highlights
+  const chats = allMatches; // All matches are now "chats" if they are active
   const newMatches = allMatches.filter(m => !m.last_message);
   
-  const unreadCount = allMatches.reduce((acc, m) => acc + (m.unread_count || 0), 0);
+  // Combine matches and connections for total unread
+  const unreadCount = allMatches.reduce((acc, m) => acc + (m.unread_count || 0), 0) + 
+                      allConnections.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
@@ -47,9 +67,9 @@ const Matches = () => {
       {/* Tabs */}
       <div className="flex gap-2 mb-8 p-1.5 rounded-2xl bg-white/5 border border-white/5">
         {[
-          { id: 'chats', label: 'Chats', icon: '💬', count: chats.length },
+          { id: 'chats', label: 'Chats', icon: '💬', count: chats.length + allConnections.length },
           { id: 'matches', label: 'Matches', icon: '❤️', count: newMatches.length },
-          { id: 'likes', label: 'Liked You', icon: '⭐', count: likesData?.count || 0 },
+          { id: 'likes', label: 'Liked You', icon: '⭐', count: newLikesCount },
         ].map(tab => (
           <button
             key={tab.id}
@@ -63,9 +83,7 @@ const Matches = () => {
             <span className="text-base">{tab.icon}</span> 
             <span className="inline">{tab.label}</span>
             {tab.count > 0 && (
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-lg font-black ${
-                activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-dark-300'
-              }`}>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[9px] font-black text-white shadow-lg shadow-brand-500/40 ring-2 ring-dark-950">
                 {tab.count}
               </span>
             )}
@@ -83,19 +101,22 @@ const Matches = () => {
                 <h3 className="text-[10px] font-black text-dark-500 uppercase tracking-widest px-1">New Connections</h3>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-1">
                    {newMatches.map(match => (
-                     <Link key={match.match_id} to={`/chat/${match.match_id}`} className="flex-shrink-0 flex flex-col items-center gap-2 group">
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-brand-500/30 group-hover:border-brand-500 transition-all shadow-lg active:scale-95">
+                     <div key={match.match_id} className="flex-shrink-0 flex flex-col items-center gap-2 group">
+                        <div 
+                          onClick={() => setFullscreenImage(match.profile_photo_url)}
+                          className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-brand-500/30 group-hover:border-brand-500 transition-all shadow-lg active:scale-95 cursor-zoom-in"
+                        >
                            <img src={match.profile_photo_url || `https://ui-avatars.com/api/?name=${match.first_name}&background=random`} alt="" className="w-full h-full object-cover" />
                         </div>
-                        <span className="text-[10px] font-bold text-white tracking-tight">{match.first_name}</span>
-                     </Link>
+                        <Link to={`/chat/${match.match_id}`} className="text-[10px] font-bold text-white tracking-tight">{match.first_name}</Link>
+                     </div>
                    ))}
                 </div>
               </div>
             )}
 
             <div className="space-y-3">
-              {matchesLoading ? <LoadingStack /> : chats.length === 0 && newMatches.length === 0 ? (
+              {matchesLoading || connectionsLoading ? <LoadingStack /> : chats.length === 0 && newMatches.length === 0 && allConnections.length === 0 ? (
                 <EmptyState
                   icon="💬"
                   title="No conversations yet"
@@ -104,9 +125,24 @@ const Matches = () => {
                   onClick={() => setActiveTab('matches')}
                 />
               ) : (
-                chats.map((match, i) => (
-                  <MatchCard key={match.match_id} match={match} index={i} />
-                ))
+                <>
+                  {allConnections.map((conn, i) => (
+                    <ConnectionCard 
+                      key={conn.id} 
+                      connection={conn} 
+                      index={i} 
+                      onPhotoTap={setFullscreenImage}
+                    />
+                  ))}
+                  {chats.map((match, i) => (
+                    <MatchCard 
+                      key={match.match_id} 
+                      match={match} 
+                      index={i} 
+                      onPhotoTap={setFullscreenImage}
+                    />
+                  ))}
+                </>
               )}
             </div>
           </div>
@@ -189,6 +225,12 @@ const Matches = () => {
           </div>
         )}
       </div>
+
+      <ImageModal 
+        src={fullscreenImage} 
+        isOpen={!!fullscreenImage} 
+        onClose={() => setFullscreenImage(null)} 
+      />
     </div>
   );
 };
@@ -207,7 +249,7 @@ const LoadingStack = () => (
   </div>
 );
 
-const MatchCard = ({ match, index }) => {
+const MatchCard = ({ match, index, onPhotoTap }) => {
   const unread = match.unread_count || 0;
   const timeAgo = match.last_message_at
     ? formatDistanceToNow(new Date(match.last_message_at), { addSuffix: true })
@@ -225,7 +267,14 @@ const MatchCard = ({ match, index }) => {
       >
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-brand-500/10 transition-shadow">
+          <div 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPhotoTap(match.profile_photo_url);
+            }}
+            className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-brand-500/10 transition-shadow cursor-zoom-in"
+          >
             {match.profile_photo_url ? (
               <img src={match.profile_photo_url} alt={match.first_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
             ) : (
@@ -262,6 +311,74 @@ const MatchCard = ({ match, index }) => {
             </p>
             {unread > 0 && (
               <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-brand-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-brand-500/30">
+                {unread}
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+};
+
+const ConnectionCard = ({ connection, index, onPhotoTap }) => {
+  const unread = connection.unread_count || 0;
+  const timeAgo = connection.last_message_at
+    ? formatDistanceToNow(new Date(connection.last_message_at), { addSuffix: true })
+    : formatDistanceToNow(new Date(connection.created_at), { addSuffix: true });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Link
+        to={`/connection/${connection.id}`}
+        className="glass-card-premium flex items-center gap-4 p-4 group transition-all duration-300 hover:translate-x-2 border-white/5 hover:border-indigo-500/30"
+      >
+        {/* Avatar */}
+        <div className="relative flex-shrink-0">
+          <div 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onPhotoTap(connection.profile_photo_url);
+            }}
+            className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-indigo-500/10 transition-shadow cursor-zoom-in"
+          >
+            {connection.profile_photo_url ? (
+              <img src={connection.profile_photo_url} alt={connection.first_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-3xl"
+                style={{ background: 'linear-gradient(135deg, #2a2420, #171514)' }}>
+                👤
+              </div>
+            )}
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-dark-950 bg-indigo-500 flex items-center justify-center">
+            <span className="text-[8px]">💬</span>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-white font-black text-base tracking-tight truncate group-hover:text-indigo-400 transition-colors">
+              {connection.first_name} {connection.last_name || ''}
+            </h4>
+            <span className="text-dark-500 text-[10px] font-black uppercase tracking-widest">{timeAgo}</span>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-dark-400 text-[10px] font-black uppercase tracking-widest truncate">{connection.university}</span>
+          </div>
+          
+          <div className="flex items-center justify-between gap-4">
+            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white' : 'text-dark-400'}`}>
+              {connection.last_message || '💬 Start a conversation!'}
+            </p>
+            {unread > 0 && (
+              <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-indigo-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-indigo-500/30">
                 {unread}
               </span>
             )}

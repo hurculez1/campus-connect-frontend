@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useQuery } from 'react-query';
+import api from '../utils/api';
 
 const navItems = [
   {
@@ -62,6 +64,11 @@ const navItems = [
 
 const Navigation = () => {
   const location = useLocation();
+  const { data: notifications } = useQuery(
+    'notifications',
+    () => api.get('/users/notification-count').then(res => res.data),
+    { refetchInterval: 30000, retry: false }
+  );
 
   return (
     <>
@@ -83,6 +90,8 @@ const Navigation = () => {
 
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
+          const hasBadge = item.path === '/matches' && notifications?.total > 0;
+
           return (
             <Link
               key={item.path}
@@ -93,6 +102,12 @@ const Navigation = () => {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-white/10 shadow-lg' : ''}`}>
                   <span className="text-2xl drop-shadow-md">{item.emoji}</span>
                 </div>
+
+                {hasBadge && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-dark-950 bg-brand-500 text-white text-[9px] font-black flex items-center justify-center shadow-lg animate-bounce">
+                    {notifications.total > 9 ? '9+' : notifications.total}
+                  </div>
+                )}
 
                 {isActive && (
                   <motion.div

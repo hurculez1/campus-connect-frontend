@@ -175,7 +175,9 @@ const Pulse = () => {
             // This will find an existing match OR create a new one instantly 
             const res = await api.post('/matches/direct', { targetUserId: userId });
             if (res.data.matchId) {
-                navigate(`/chat/${res.data.matchId}`);
+                navigate(`/chat/${res.data.matchId}`, { 
+                    state: { fromNewMatch: true } // Optional: help Chat.js know it's fresh
+                });
             } else {
                 navigate('/matches');
             }
