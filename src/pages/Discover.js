@@ -55,7 +55,7 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
 };
 
 // ─── Profile Detail Modal ──────────────────────────────────────────────────
-const ProfileDetailModal = ({ user, mode, onClose, onAction }) => {
+const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
   const isDating = mode === 'dating';
   const age = user.date_of_birth
     ? Math.floor((new Date() - new Date(user.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
@@ -82,7 +82,7 @@ const ProfileDetailModal = ({ user, mode, onClose, onAction }) => {
             src={user.profile_photo_url} 
             alt={user.first_name} 
             className="w-full h-full object-cover cursor-zoom-in" 
-            onClick={() => onAction('fullscreen', user.profile_photo_url)}
+            onClick={() => onAction?.('fullscreen', user.profile_photo_url)}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
           <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 transition-colors">✕</button>
@@ -145,7 +145,7 @@ const ProfileDetailModal = ({ user, mode, onClose, onAction }) => {
         <div className="p-6 pt-0">
           <button 
             onClick={() => { 
-              handleDirectMatch(user.id); 
+              onConnect(user.id); 
               onClose(); 
             }}
             className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95 ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}
@@ -436,6 +436,13 @@ const Discover = () => {
     }
   };
 
+  const handleBack = () => {
+    if (currentIndex > 0 && history.length > 0) {
+      setCurrentIndex(prev => prev - 1);
+      setHistory(prev => prev.slice(0, -1));
+    }
+  };
+
   const onSwipe = useCallback((direction, profile) => {
     const swipeMap = { right: 'like', left: 'pass', up: 'super_like' };
     const dir = swipeMap[direction] || direction;
@@ -447,13 +454,6 @@ const Discover = () => {
     swipeMutation.mutate({ targetUserId: profile.id, direction: dir, profile: profile });
     setCurrentIndex(prev => prev + 1);
   }, [swipeMutation]);
-
-  const handleBack = () => {
-    if (currentIndex > 0 && history.length > 0) {
-      setCurrentIndex(prev => prev - 1);
-      setHistory(prev => prev.slice(0, -1));
-    }
-  };
 
   const programmaticSwipe = (dir) => {
     if (!currentMatch) return;
@@ -517,10 +517,7 @@ const Discover = () => {
             user={selectedProfile} 
             mode={mode} 
             onClose={() => setSelectedProfile(null)} 
-            onAction={(type, data) => {
-              if (type === 'fullscreen') setFullscreenImage(data);
-              else handleDirectMatch(selectedProfile.id);
-            }}
+            onConnect={handleDirectMatch}
           />
         )}
       </AnimatePresence>
@@ -606,7 +603,7 @@ const Discover = () => {
         <div className="flex items-center justify-center mt-5 mb-2 group-shrink-0 z-50 relative pointer-events-auto">
           <button onClick={() => {
             if (currentMatch?.id) {
-              handleGoToChat({ stopPropagation: () => {} });
+              handleDirectMatch(currentMatch.id);
             }
           }}
             className={`btn-premium-v2 w-full max-w-[260px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 ${isDating ? 'bg-brand-500 border-brand-400' : 'bg-indigo-500 border-indigo-400'}`}>
