@@ -5,7 +5,7 @@ import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 
 // ─── Post Card ──────────────────────────────────────────────────────────────
-const PostCard = ({ post, mode, onLike, onMessage }) => {
+const PostCard = ({ post, mode, onLike, onMessage, onMatch }) => {
     const isDating = mode === 'dating';
     const isAnonymous = post.is_anonymous;
 
@@ -82,6 +82,13 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
                         </div>
                         <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">Vibe Check</span>
                     </button>
+
+                    <button onClick={() => onMatch(post.user_id)} className="flex items-center gap-2.5 group/btn">
+                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
+                            <span className="text-base group-hover/btn:scale-125 transition-transform">❤️</span>
+                        </div>
+                        <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">Match Now</span>
+                    </button>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -156,22 +163,24 @@ const Pulse = () => {
         likeMutation.mutate(postId);
     };
 
+    const navigate = useNavigate();
+
     const handleGoToChat = async (userId) => {
         if (!userId) {
-             window.location.href = '/matches';
+             navigate('/matches');
              return;
         }
         try {
             // This will find an existing match OR create a new one instantly 
             const res = await api.post('/matches/direct', { targetUserId: userId });
             if (res.data.matchId) {
-                window.location.href = `/chat/${res.data.matchId}`;
+                navigate(`/chat/${res.data.matchId}`);
             } else {
-                window.location.href = '/matches';
+                navigate('/matches');
             }
         } catch (err) {
             console.error('Direct chat failed:', err);
-            window.location.href = '/matches';
+            navigate('/matches');
         }
     };
 
@@ -235,7 +244,7 @@ const Pulse = () => {
                 ) : (
                     <AnimatePresence>
                         {data?.map(post => (
-                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onMessage={handleGoToChat} />
+                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onMessage={handleGoToChat} onMatch={handleGoToChat} />
                         ))}
                     </AnimatePresence>
                 )}

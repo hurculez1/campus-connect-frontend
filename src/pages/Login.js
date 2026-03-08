@@ -334,31 +334,6 @@ const Login = () => {
             </svg>
           </motion.button>
 
-          {/* Demo Mode */}
-          <div className="relative flex items-center gap-4 mt-4">
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
-            <span className="text-dark-600 text-xs">OR</span>
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={() => { demoLogin(); navigate('/discover'); }}
-            className="w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 transition-all duration-200 mt-2"
-            style={{
-              background: 'linear-gradient(135deg, rgba(244,63,94,0.15), rgba(245,158,11,0.15))',
-              border: '2px dashed rgba(244,63,94,0.5)',
-              color: '#fb7185',
-            }}
-          >
-            <span className="text-xl">🚀</span>
-            <div className="text-left">
-              <div>Try Demo — No Account Needed</div>
-              <div className="text-xs font-normal opacity-70">Explore the full app instantly</div>
-            </div>
-            <span className="text-xl">→</span>
-          </motion.button>
         </motion.div>
 
         {/* Sign up link */}

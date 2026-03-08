@@ -61,7 +61,7 @@ const Matches = () => {
             }`}
           >
             <span className="text-base">{tab.icon}</span> 
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="inline">{tab.label}</span>
             {tab.count > 0 && (
               <span className={`text-[9px] px-1.5 py-0.5 rounded-lg font-black ${
                 activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-dark-300'
@@ -76,20 +76,39 @@ const Matches = () => {
       {/* Content */}
       <div className="space-y-4">
         {activeTab === 'chats' && (
-          <div className="space-y-3">
-            {matchesLoading ? <LoadingStack /> : chats.length === 0 ? (
-              <EmptyState
-                icon="💬"
-                title="No conversations yet"
-                desc="Start a conversation with one of your matches to see them here!"
-                cta="Go to Matches"
-                onClick={() => setActiveTab('matches')}
-              />
-            ) : (
-              chats.map((match, i) => (
-                <MatchCard key={match.match_id} match={match} index={i} />
-              ))
+          <div className="space-y-6">
+            {/* New Matches Row (Horizontal) */}
+            {newMatches.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-dark-500 uppercase tracking-widest px-1">New Connections</h3>
+                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-1">
+                   {newMatches.map(match => (
+                     <Link key={match.match_id} to={`/chat/${match.match_id}`} className="flex-shrink-0 flex flex-col items-center gap-2 group">
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-brand-500/30 group-hover:border-brand-500 transition-all shadow-lg active:scale-95">
+                           <img src={match.profile_photo_url || `https://ui-avatars.com/api/?name=${match.first_name}&background=random`} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-[10px] font-bold text-white tracking-tight">{match.first_name}</span>
+                     </Link>
+                   ))}
+                </div>
+              </div>
             )}
+
+            <div className="space-y-3">
+              {matchesLoading ? <LoadingStack /> : chats.length === 0 && newMatches.length === 0 ? (
+                <EmptyState
+                  icon="💬"
+                  title="No conversations yet"
+                  desc="Start a conversation with one of your matches to see them here!"
+                  cta="Go to Matches"
+                  onClick={() => setActiveTab('matches')}
+                />
+              ) : (
+                chats.map((match, i) => (
+                  <MatchCard key={match.match_id} match={match} index={i} />
+                ))
+              )}
+            </div>
           </div>
         )}
 
