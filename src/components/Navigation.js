@@ -90,7 +90,8 @@ const Navigation = () => {
 
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
-          const hasBadge = item.path === '/matches' && notifications?.total > 0;
+          const badgeCount = item.path === '/matches' ? (notifications?.total || 0) : 0;
+          const showBadge = badgeCount > 0;
 
           return (
             <Link
@@ -103,9 +104,9 @@ const Navigation = () => {
                   <span className="text-2xl drop-shadow-md">{item.emoji}</span>
                 </div>
 
-                {hasBadge && (
+                {showBadge && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-dark-950 bg-brand-500 text-white text-[9px] font-black flex items-center justify-center shadow-lg animate-bounce">
-                    {notifications.total > 9 ? '9+' : notifications.total}
+                    {badgeCount > 9 ? '9+' : badgeCount}
                   </div>
                 )}
 

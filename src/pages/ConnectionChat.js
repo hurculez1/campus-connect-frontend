@@ -246,11 +246,17 @@ const ConnectionChat = () => {
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}
             >
-              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                <div className={isMe ? 'msg-bubble-me' : 'msg-bubble-them'}>
+              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                <div 
+                  className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
+                    isMe 
+                      ? 'bg-brand-500 text-white rounded-br-md' 
+                      : 'bg-white/10 text-white rounded-bl-md'
+                  }`}
+                >
                   {msg.content}
                 </div>
-                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-600' : 'text-dark-600'}`}>
+                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-500' : 'text-dark-500'}`}>
                   <span>{formatMsgTime(msg.created_at)}</span>
                 </div>
               </div>

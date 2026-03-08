@@ -119,16 +119,28 @@ const Chat = () => {
     const newSocket = io(socketUrl, {
       auth: { token },
       reconnectionAttempts: 5,
+      transports: ['websocket', 'polling'],
     });
-    newSocket.on('connect', () => newSocket.emit('join_match', matchId));
-    newSocket.on('new_message', () => queryClient.invalidateQueries(['messages', matchId]));
+    
+    newSocket.on('connect', () => {
+      console.log('Socket connected');
+      newSocket.emit('join_match', matchId);
+    });
+    
+    newSocket.on('new_message', (data) => {
+      console.log('New message received:', data);
+      queryClient.invalidateQueries(['messages', matchId]);
+    });
+    
     newSocket.on('typing', ({ userId, typing }) => {
       if (userId !== user?.id) setOtherTyping(typing);
     });
+    
     setSocket(newSocket);
+    
     return () => {
       newSocket.emit('leave_match', matchId);
-      newSocket.close();
+      newSocket.disconnect();
     };
   }, [matchId, queryClient, user?.id]);
 
@@ -270,14 +282,20 @@ const Chat = () => {
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}
             >
-              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%]`}>
-                <div className={isMe ? 'msg-bubble-me' : 'msg-bubble-them'}>
+              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                <div 
+                  className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
+                    isMe 
+                      ? 'bg-brand-500 text-white rounded-br-md' 
+                      : 'bg-white/10 text-white rounded-bl-md'
+                  }`}
+                >
                   {msg.content}
                 </div>
-                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-600' : 'text-dark-600'}`}>
+                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-500' : 'text-dark-500'}`}>
                   <span>{formatMsgTime(msg.created_at)}</span>
                   {isMe && (
-                    <span className={msg.is_read ? 'text-brand-400' : 'text-dark-600'}>
+                    <span className={msg.is_read ? 'text-brand-400' : 'text-dark-500'}>
                       {msg.is_read ? '✓✓' : '✓'}
                     </span>
                   )}

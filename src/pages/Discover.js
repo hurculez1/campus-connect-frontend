@@ -530,7 +530,7 @@ const Discover = () => {
         }} 
       />
 
-      <div className="max-w-sm mx-auto px-4 relative flex flex-col h-[calc(100vh-140px)] lg:h-auto">
+      <div className="max-w-md lg:max-w-2xl mx-auto px-4 relative flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)]">
         {/* Progress bar */}
         {swipeLimit && (
           <div className="mb-4 flex items-center gap-4 group flex-shrink-0">
@@ -545,21 +545,21 @@ const Discover = () => {
         )}
 
         {/* Swipe Stack */}
-        <div className="relative perspective-lg w-full flex-1 min-h-0 max-h-[520px]">
+        <div className="relative perspective-lg w-full flex-1 min-h-0 max-h-[520px] lg:max-h-[600px]">
           {currentIndex < matches.length && (
             <>
-              {/* Tap-to-swipe Arrows */}
+              {/* Tap-to-swipe Arrows - visible on all screens */}
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
-                className="absolute left-[-15px] lg:left-[-60px] top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-xl text-white shadow-2xl backdrop-blur-xl hover:bg-brand-500 transition-all active:scale-75 group ring-1 ring-white/10 hidden sm:flex"
+                className="absolute left-0 sm:left-2 lg:left-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-red-500 transition-all active:scale-75 group"
               >
-                <span className="group-hover:-translate-x-1 transition-transform">←</span>
+                <span className="group-hover:-translate-x-1 transition-transform">✕</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
-                className="absolute right-[-15px] lg:right-[-60px] top-1/2 -translate-y-1/2 z-[60] w-10 h-10 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-xl text-white shadow-2xl backdrop-blur-xl hover:bg-brand-500 transition-all active:scale-75 group ring-1 ring-white/10 hidden sm:flex"
+                className="absolute right-0 sm:right-2 lg:right-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-green-500 transition-all active:scale-75 group"
               >
-                <span className="group-hover:translate-x-1 transition-transform">→</span>
+                <span className="group-hover:translate-x-1 transition-transform">❤️</span>
               </button>
 
               {/* Back Button */}
