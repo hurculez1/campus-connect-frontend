@@ -459,32 +459,11 @@ const Discover = () => {
           })}
         </div>
 
-        {/* Premium Action Controls */}
-        <div className="flex items-center justify-center gap-4 mt-6 z-50 relative pointer-events-auto">
-          {/* Back Button */}
-          <button onClick={handleBack} disabled={currentIndex === 0}
-            className={`w-12 h-12 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-yellow-500 hover:text-yellow-400 hover:border-yellow-500/30 hover:scale-110 active:scale-90 transition-all shadow-xl disabled:opacity-30 disabled:pointer-events-none group`}>
-            <span className="text-xl group-hover:rotate-[-20deg] transition-transform">↩️</span>
-          </button>
-
-          <button onClick={() => programmaticSwipe('left')}
-            className="w-16 h-16 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-dark-400 hover:text-white hover:border-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group">
-            <span className="text-2xl group-hover:rotate-12 transition-transform">✕</span>
-          </button>
-
-          <button onClick={() => programmaticSwipe('up')}
-            className="w-18 h-18 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-blue-400 hover:text-blue-300 hover:border-blue-400/30 hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-blue-500/10 group">
-            <span className="text-3xl group-hover:scale-125 transition-transform">⭐</span>
-          </button>
-
+        {/* Primary Action Control */}
+        <div className="flex items-center justify-center mt-6 z-50 relative pointer-events-auto">
           <button onClick={() => handleDirectMatch(currentMatch.id)}
-            className={`btn-premium-v2 px-8 py-4 flex items-center justify-center gap-3 text-xs shadow-2xl transition-all hover:scale-110 active:scale-95 ${isDating ? 'bg-brand-500 border-brand-400' : 'bg-indigo-500 border-indigo-400'}`}>
+            className={`btn-premium-v2 w-full max-w-[280px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 ${isDating ? 'bg-brand-500 border-brand-400' : 'bg-indigo-500 border-indigo-400'}`}>
             <span>❤️</span> Match Now
-          </button>
-
-          <button onClick={() => programmaticSwipe('right')}
-            className={`w-16 h-16 rounded-full flex items-center justify-center border text-white hover:scale-110 active:scale-90 transition-all shadow-2xl group ${isDating ? 'bg-brand-500 border-brand-400 shadow-brand-500/30' : 'bg-indigo-500 border-indigo-400 shadow-indigo-500/30'}`}>
-            <span className="text-2xl group-hover:scale-110 transition-transform">{isDating ? '❤️' : '📚'}</span>
           </button>
         </div>
 

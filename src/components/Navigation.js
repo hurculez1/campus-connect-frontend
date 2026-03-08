@@ -66,7 +66,7 @@ const Navigation = () => {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-[100] w-full"
+        className="fixed bottom-0 left-0 right-0 z-[200] w-full"
       >
         {/* Fading gradient to obscure scrolling content right above the bar */}
         <div className="h-12 w-full bg-gradient-to-t from-dark-950 via-dark-950/80 to-transparent pointer-events-none" />
@@ -74,8 +74,9 @@ const Navigation = () => {
         <div 
           className="glass-card-premium h-20 rounded-t-[2.5rem] rounded-b-none flex items-center justify-around px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 relative overflow-hidden backdrop-blur-3xl"
           style={{
-            background: 'rgba(20, 18, 17, 0.90)',
-            WebkitBackdropFilter: 'blur(24px)'
+            background: 'rgba(20, 18, 17, 0.95)',
+            WebkitBackdropFilter: 'blur(24px)',
+            paddingBottom: 'env(safe-area-inset-bottom)'
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />

@@ -156,7 +156,7 @@ const Chat = () => {
   };
 
   const grouped = groupMessagesByDate(messages);
-  const otherUser = matchInfo?.other_user;
+  const otherUser = matchInfo; // Backend returns flat fields now
 
   if (isLoading) {
     return (
