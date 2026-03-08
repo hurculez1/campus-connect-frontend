@@ -239,10 +239,6 @@ const Chat = () => {
             {otherUser?.verification_status === 'verified' && ' · ✓ Verified'}
           </p>
         </div>
-
-        <button onClick={() => setShowUserInfo(true)} className="flex items-center justify-center w-10 h-10 rounded-xl text-dark-400 hover:text-white hover:bg-white/10 transition-all">
-          <span className="text-lg">ℹ️</span>
-        </button>
       </div>
 
       {/* ─ Messages ─ */}
@@ -444,22 +440,65 @@ const Chat = () => {
       
       {/* User Info Modal */}
       {showUserInfo && otherUser && (
-        <div className="fixed inset-0 z-[60] bg-dark-950/95 flex items-center justify-center p-4" onClick={() => setShowUserInfo(false)}>
-          <div className="w-full max-w-md bg-dark-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
-            <div className="relative h-48">
-              <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent" />
-              <button onClick={() => setShowUserInfo(false)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white">✕</button>
+        <div className="fixed inset-0 z-[60] bg-dark-950 flex items-center justify-center" onClick={() => setShowUserInfo(false)}>
+          <div className="w-full h-full max-w-2xl bg-dark-900 overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Profile Header */}
+            <div className="relative h-[50vh]">
+              <img 
+                src={otherUser.profile_photo_url} 
+                alt="" 
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setFullscreenImage(otherUser.profile_photo_url)}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent" />
+              <button onClick={() => setShowUserInfo(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white text-xl">
+                ←
+              </button>
+              <div className="absolute bottom-4 left-4 right-4">
+                <h2 className="text-3xl font-black text-white">{otherUser.first_name} {otherUser.last_name}</h2>
+                <p className="text-brand-400 text-sm font-bold mt-1">{otherUser.university}</p>
+              </div>
             </div>
-            <div className="p-6">
-              <h2 className="text-2xl font-black text-white">{otherUser.first_name} {otherUser.last_name}</h2>
-              <p className="text-brand-400 text-sm font-bold mt-1">{otherUser.university}</p>
-              {otherUser.course && <p className="text-dark-400 text-sm mt-2">🎓 {otherUser.course}</p>}
-              {otherUser.year_of_study && <p className="text-dark-400 text-sm">📅 Year {otherUser.year_of_study}</p>}
-              {otherUser.verification_status === 'verified' && <div className="badge-verified mt-3">✓ Verified</div>}
+            
+            {/* Profile Details */}
+            <div className="p-6 space-y-6">
+              {otherUser.verification_status === 'verified' && (
+                <div className="badge-verified">✓ Verified Student</div>
+              )}
               
-              <button onClick={() => { setShowUserInfo(false); navigate(`/chat/${matchId}`); }} className="w-full mt-6 py-3 bg-brand-500 rounded-xl font-black text-white flex items-center justify-center gap-2">
-                💬 Chat
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Course</p>
+                  <p className="text-white font-bold">{otherUser.course || 'Not specified'}</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Year</p>
+                  <p className="text-white font-bold">{otherUser.year_of_study || 'N/A'}</p>
+                </div>
+              </div>
+
+              {otherUser.bio && (
+                <div>
+                  <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">About</h3>
+                  <p className="text-dark-200 text-sm leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5">
+                    {otherUser.bio}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">Interests</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(Array.isArray(otherUser.interests) ? otherUser.interests : []).map(tag => (
+                    <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={() => { setShowUserInfo(false); }} className="w-full py-4 bg-brand-500 rounded-2xl font-black text-white flex items-center justify-center gap-2">
+                💬 Send Message
               </button>
             </div>
           </div>

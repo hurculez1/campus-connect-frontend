@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import Navigation from './Navigation';
 import Sidebar from './Sidebar';
@@ -7,7 +7,11 @@ import Sidebar from './Sidebar';
 const Layout = () => {
   const { user, mode, toggleMode } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const location = useLocation();
   const isDating = mode === 'dating';
+  
+  // Hide navigation on chat routes
+  const isChatRoute = location.pathname.startsWith('/chat/') || location.pathname.startsWith('/connection/');
 
   // Always force dark mode
   React.useEffect(() => {
@@ -111,12 +115,12 @@ const Layout = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ${isChatRoute ? 'pb-0' : 'pb-32'}`}>
         <Outlet />
       </main>
 
-      {/* Mobile Navigation */}
-      <Navigation />
+      {/* Mobile Navigation - hidden on chat pages */}
+      {!isChatRoute && <Navigation />}
 
       {/* Sidebar Overlay */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
