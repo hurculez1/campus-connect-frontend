@@ -37,13 +37,13 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
     >
       <motion.div 
         style={{ opacity: likeOpacity }} 
-        className="absolute top-8 right-8 z-50 py-2 px-6 border-4 border-green-500 text-green-500 font-black text-4xl rounded-xl rotate-12 bg-white/10 backdrop-blur-md pointer-events-none"
+        className="absolute top-4 right-4 z-50 py-1 px-4 border-2 border-green-500 text-green-500 font-black text-2xl rounded-lg rotate-12 bg-black/40 backdrop-blur-md pointer-events-none"
       >
         {isDating ? 'LIKE ❤️' : 'STUDY 📚'}
       </motion.div>
       <motion.div 
         style={{ opacity: nopeOpacity }} 
-        className="absolute top-8 left-8 z-50 py-2 px-6 border-4 border-red-500 text-red-500 font-black text-4xl rounded-xl -rotate-12 bg-white/10 backdrop-blur-md pointer-events-none"
+        className="absolute top-4 left-4 z-50 py-1 px-4 border-2 border-red-500 text-red-500 font-black text-2xl rounded-lg -rotate-12 bg-black/40 backdrop-blur-md pointer-events-none"
       >
         NOPE
       </motion.div>
@@ -392,29 +392,31 @@ const Discover = () => {
         <div className="relative perspective-lg w-full h-[65vh] max-h-[500px] min-h-[420px]">
           {currentIndex < matches.length && (
             <>
-              {/* Tap-to-swipe Arrows */}
+              {/* Tap-to-swipe Arrows - Now visible on mobile too */}
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
-                className="absolute left-[-60px] top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-dark-400 hover:bg-white/10 hover:text-white transition-all hidden lg:flex"
+                className="absolute left-[-20px] lg:left-[-60px] top-1/2 -translate-y-1/2 z-50 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-xl lg:text-2xl text-white shadow-2xl backdrop-blur-md hover:bg-white hover:text-black transition-all active:scale-75"
               >
                 ←
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
-                className="absolute right-[-60px] top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-dark-400 hover:bg-white/10 hover:text-white transition-all hidden lg:flex"
+                className="absolute right-[-20px] lg:right-[-60px] top-1/2 -translate-y-1/2 z-50 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-xl lg:text-2xl text-white shadow-2xl backdrop-blur-md hover:bg-white hover:text-black transition-all active:scale-75"
               >
                 →
               </button>
 
               {/* Back Button */}
               {history.length > 0 && (
-                <button 
-                  onClick={handleBack}
-                  className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl text-dark-400 hover:bg-white/10 hover:text-white transition-all group"
-                  title="Swipe Back (Undo)"
-                >
-                  <span className="group-hover:rotate-[-45deg] transition-transform">↺</span>
-                </button>
+                <div className="absolute bottom-[-70px] left-1/2 -translate-x-1/2 z-50">
+                  <button 
+                    onClick={handleBack}
+                    className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl text-dark-400 hover:bg-white hover:text-black hover:border-white transition-all group shadow-xl active:scale-75"
+                    title="Swipe Back (Undo)"
+                  >
+                    <span className="group-hover:rotate-[-45deg] transition-transform">↺</span>
+                  </button>
+                </div>
               )}
             </>
           )}

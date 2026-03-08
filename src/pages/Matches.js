@@ -6,7 +6,7 @@ import { formatDistanceToNow } from 'date-fns';
 import api from '../utils/api';
 
 const Matches = () => {
-  const [activeTab, setActiveTab] = useState('matches');
+  const [activeTab, setActiveTab] = useState('chats');
 
   const { data: matchesData, isLoading: matchesLoading } = useQuery(
     'matches',
@@ -20,45 +20,52 @@ const Matches = () => {
     { staleTime: 30000, retry: false }
   );
 
-  const matches = matchesData?.matches || [];
-  const likes = likesData?.likes || [];
-  const newMatchCount = matches.filter(m => !m.last_message).length;
+  const allMatches = matchesData?.matches || [];
+  const likes = likesData?.users || []; // Backend returns 'users' for likes
+  
+  const chats = allMatches.filter(m => m.last_message);
+  const newMatches = allMatches.filter(m => !m.last_message);
+  
+  const unreadCount = allMatches.reduce((acc, m) => acc + (m.unread_count || 0), 0);
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-4 sm:px-0">
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-black text-white flex items-center gap-2 tracking-tighter">
           Your Connections
-          {newMatchCount > 0 && (
-            <span className="text-sm font-bold text-white px-2.5 py-0.5 rounded-full"
+          {unreadCount > 0 && (
+            <span className="text-[10px] font-black text-white px-2.5 py-1 rounded-full uppercase tracking-widest animate-pulse"
               style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}>
-              {newMatchCount} new
+              {unreadCount} NEW
             </span>
           )}
         </h1>
-        <p className="text-dark-400 text-sm mt-1">People you've connected with on campus</p>
+        <p className="text-dark-400 text-xs font-medium mt-1 uppercase tracking-widest">People you've connected with on campus</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 p-1 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)' }}>
+      <div className="flex gap-2 mb-8 p-1.5 rounded-2xl bg-white/5 border border-white/5">
         {[
-          { id: 'matches', label: 'Matches', count: matches.length },
-          { id: 'likes', label: 'Liked You', count: likes.length },
+          { id: 'chats', label: 'Chats', icon: '💬', count: chats.length },
+          { id: 'matches', label: 'Matches', icon: '❤️', count: newMatches.length },
+          { id: 'likes', label: 'Liked You', icon: '⭐', count: likesData?.count || 0 },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2`}
-            style={activeTab === tab.id
-              ? { background: 'linear-gradient(135deg, #f43f5e, #f59e0b)', color: 'white' }
-              : { color: '#a49582' }
-            }
+            className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
+               activeTab === tab.id 
+               ? 'bg-gradient-to-r from-brand-500 to-orange-500 text-white shadow-lg shadow-brand-500/20 scale-[1.02]' 
+               : 'text-dark-400 hover:text-white hover:bg-white/5'
+            }`}
           >
-            {tab.id === 'matches' ? '❤️' : '⭐'} {tab.label}
+            <span className="text-base">{tab.icon}</span> 
+            <span className="hidden sm:inline">{tab.label}</span>
             {tab.count > 0 && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-dark-300'
-                }`}>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-lg font-black ${
+                activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/10 text-dark-300'
+              }`}>
                 {tab.count}
               </span>
             )}
@@ -67,172 +74,203 @@ const Matches = () => {
       </div>
 
       {/* Content */}
-      {activeTab === 'matches' && (
-        <div className="space-y-3">
-          {matchesLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="glass-card p-4 flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full shimmer flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 rounded shimmer w-1/3" />
-                  <div className="h-3 rounded shimmer w-2/3" />
-                </div>
-              </div>
-            ))
-          ) : matches.length === 0 ? (
-            <EmptyState
-              icon="💔"
-              title="No matches yet"
-              desc="Keep swiping! Your perfect campus connection is out there."
-              cta="Start Discovering"
-              ctaLink="/discover"
-            />
-          ) : (
-            matches.map((match, i) => (
-              <MatchCard key={match.id} match={match} index={i} />
-            ))
-          )}
-        </div>
-      )}
+      <div className="space-y-4">
+        {activeTab === 'chats' && (
+          <div className="space-y-3">
+            {matchesLoading ? <LoadingStack /> : chats.length === 0 ? (
+              <EmptyState
+                icon="💬"
+                title="No conversations yet"
+                desc="Start a conversation with one of your matches to see them here!"
+                cta="Go to Matches"
+                onClick={() => setActiveTab('matches')}
+              />
+            ) : (
+              chats.map((match, i) => (
+                <MatchCard key={match.match_id} match={match} index={i} />
+              ))
+            )}
+          </div>
+        )}
 
-      {activeTab === 'likes' && (
-        <div>
-          {likesLoading ? (
-            <div className="flex justify-center py-10">
-              <div className="w-8 h-8 rounded-full animate-spin"
-                style={{ border: '3px solid rgba(244,63,94,0.2)', borderTopColor: '#f43f5e' }} />
-            </div>
-          ) : likes.length === 0 ? (
-            <EmptyState
-              icon="🌟"
-              title="No likes yet"
-              desc="Be the first to make a move! Upgrade to Premium to see who liked you."
-              cta="Upgrade to Premium"
-              ctaLink="/subscription"
-            />
-          ) : (
-            <div>
-              {/* Teaser for free users */}
-              <div className="glass-card p-4 mb-4 flex items-center gap-3"
-                style={{ border: '1px solid rgba(244,63,94,0.3)' }}>
-                <span className="text-2xl">✨</span>
-                <div className="flex-1">
-                  <p className="text-white font-semibold text-sm">{likes.length} people liked you!</p>
-                  <p className="text-dark-400 text-xs">Upgrade to Premium to see who they are</p>
-                </div>
-                <Link to="/subscription" className="btn-brand text-xs px-4 py-2">Unlock</Link>
-              </div>
+        {activeTab === 'matches' && (
+          <div className="space-y-3">
+            {matchesLoading ? <LoadingStack /> : newMatches.length === 0 ? (
+              <EmptyState
+                icon="❤️"
+                title="No new matches"
+                desc="Keep exploring the campus to find your next connection!"
+                cta="Start Discovering"
+                ctaLink="/discover"
+              />
+            ) : (
+              newMatches.map((match, i) => (
+                <MatchCard key={match.match_id} match={match} index={i} />
+              ))
+            )}
+          </div>
+        )}
 
-              <div className="grid grid-cols-3 gap-3">
-                {likes.map((like, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="glass-card overflow-hidden aspect-square relative"
-                  >
-                    <div className="w-full h-full"
-                      style={{ filter: 'blur(12px)', background: 'linear-gradient(135deg, #f43f5e40, #f59e0b40)' }}>
-                      {like.profile_photo_url && (
-                        <img src={like.profile_photo_url} alt="" className="w-full h-full object-cover" />
+        {activeTab === 'likes' && (
+          <div>
+            {likesLoading ? (
+              <div className="flex justify-center py-20">
+                <div className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin border-brand-500" />
+              </div>
+            ) : likes.length === 0 ? (
+              <EmptyState
+                icon="🌟"
+                title="No likes yet"
+                desc="Be the first to make a move! Upgrade to Premium to see who liked you."
+                cta="Upgrade to Premium"
+                ctaLink="/subscription"
+              />
+            ) : (
+              <div className="space-y-4">
+                {/* Teaser for free users */}
+                {likesData?.blurred && (
+                  <div className="glass-card-premium p-6 mb-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left border-brand-500/20">
+                    <div className="w-16 h-16 rounded-3xl bg-brand-500/10 flex items-center justify-center text-3xl shadow-inner">✨</div>
+                    <div className="flex-1">
+                      <p className="text-white font-black text-lg tracking-tight">{likesData.count} people liked you!</p>
+                      <p className="text-dark-400 text-sm font-medium">Upgrade to Premium to reveal their profiles and match instantly.</p>
+                    </div>
+                    <Link to="/subscription" className="btn-premium-v2 py-3 px-8 text-xs">Unlock Now</Link>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {likes.map((like, i) => (
+                    <motion.div
+                      key={like.id || i}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="glass-card-premium overflow-hidden aspect-[3/4] relative group"
+                    >
+                      <div className="w-full h-full">
+                        <img 
+                          src={like.profile_photo_url || `https://ui-avatars.com/api/?name=${like.first_name}&background=random`} 
+                          alt="" 
+                          className={`w-full h-full object-cover transition-all duration-700 ${likesData?.blurred ? 'blur-2xl scale-125' : 'group-hover:scale-110'}`} 
+                        />
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                         <p className="text-white font-black text-sm tracking-tight">{likesData?.blurred ? 'Someone' : like.first_name}</p>
+                         <p className="text-dark-400 text-[10px] font-black uppercase tracking-widest">{like.university}</p>
+                      </div>
+                      {likesData?.blurred && (
+                        <div className="absolute inset-0 flex items-center justify-center text-4xl">❓</div>
                       )}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-3xl">❓</span>
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
+const LoadingStack = () => (
+  <div className="space-y-3">
+    {Array.from({ length: 4 }).map((_, i) => (
+      <div key={i} className="glass-card p-5 flex items-center gap-4 animate-pulse">
+        <div className="w-16 h-16 rounded-2xl bg-white/5 flex-shrink-0" />
+        <div className="flex-1 space-y-3">
+          <div className="h-4 bg-white/5 rounded-full w-1/3" />
+          <div className="h-3 bg-white/5 rounded-full w-2/3" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const MatchCard = ({ match, index }) => {
-  const other = match.other_user;
   const unread = match.unread_count || 0;
-  const timeAgo = match.last_message_time
-    ? formatDistanceToNow(new Date(match.last_message_time), { addSuffix: true })
-    : 'Just matched';
+  const timeAgo = match.last_message_at
+    ? formatDistanceToNow(new Date(match.last_message_at), { addSuffix: true })
+    : formatDistanceToNow(new Date(match.matched_at), { addSuffix: true });
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
     >
       <Link
-        to={`/chat/${match.id}`}
-        className="glass-card flex items-center gap-4 p-4 group hover:border-brand-500/30 transition-all duration-200 block"
+        to={`/chat/${match.match_id}`}
+        className="glass-card-premium flex items-center gap-4 p-4 group transition-all duration-300 hover:translate-x-2 border-white/5 hover:border-brand-500/30"
       >
         {/* Avatar */}
         <div className="relative flex-shrink-0">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden"
-            style={{ border: '2px solid rgba(244,63,94,0.3)' }}>
-            {other?.profile_photo_url ? (
-              <img src={other.profile_photo_url} alt={other.first_name} className="w-full h-full object-cover" />
+          <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-brand-500/10 transition-shadow">
+            {match.profile_photo_url ? (
+              <img src={match.profile_photo_url} alt={match.first_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl"
-                style={{ background: 'linear-gradient(135deg, #2a2420, #1a1614)' }}>
-                {other?.gender === 'female' ? '👩🏾' : '👨🏿'}
+              <div className="w-full h-full flex items-center justify-center text-3xl"
+                style={{ background: 'linear-gradient(135deg, #2a2420, #171514)' }}>
+                👤
               </div>
             )}
           </div>
-          {/* Online dot */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500"
-            style={{ border: '2px solid #0f0d0c' }} />
+          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-dark-950 flex items-center justify-center ${
+            match.last_active && (new Date() - new Date(match.last_active)) < 300000 ? 'bg-green-500' : 'bg-dark-600'
+          }`}>
+             {match.last_active && (new Date() - new Date(match.last_active)) < 300000 && (
+               <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+             )}
+          </div>
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-white font-bold truncate">{other?.first_name} {other?.last_name}</span>
-              {other?.verification_status === 'verified' && (
-                <span className="text-blue-400 text-xs">✓</span>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-dark-500 text-xs">{timeAgo}</span>
-              {unread > 0 && (
-                <span className="w-5 h-5 rounded-full text-white text-xs font-bold flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}>
-                  {unread}
-                </span>
-              )}
-            </div>
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-white font-black text-base tracking-tight truncate group-hover:text-brand-400 transition-colors">
+              {match.first_name} {match.last_name}
+            </h4>
+            <span className="text-dark-500 text-[10px] font-black uppercase tracking-widest">{timeAgo}</span>
           </div>
-          <p className="text-dark-400 text-xs truncate">{other?.university}</p>
-          {match.last_message && (
-            <p className={`text-sm truncate mt-1 ${unread ? 'text-white font-medium' : 'text-dark-500'}`}>
-              {match.last_message}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-dark-400 text-[10px] font-black uppercase tracking-widest truncate">{match.university}</span>
+          </div>
+          
+          <div className="flex items-center justify-between gap-4">
+            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white' : 'text-dark-400'}`}>
+              {match.last_message || '✨ Say hi to your new match!'}
             </p>
-          )}
-          {!match.last_message && (
-            <p className="text-brand-400 text-xs mt-1 font-medium">✨ New match — say hello!</p>
-          )}
+            {unread > 0 && (
+              <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-brand-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-brand-500/30">
+                {unread}
+              </span>
+            )}
+          </div>
         </div>
       </Link>
     </motion.div>
   );
 };
 
-const EmptyState = ({ icon, title, desc, cta, ctaLink }) => (
+const EmptyState = ({ icon, title, desc, cta, ctaLink, onClick }) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="text-center py-20"
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex flex-col items-center justify-center py-20 text-center glass-card-premium bg-white/[0.02]"
   >
-    <div className="text-6xl mb-4">{icon}</div>
-    <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
-    <p className="text-dark-400 mb-8 max-w-xs mx-auto">{desc}</p>
-    <Link to={ctaLink} className="btn-brand px-8 py-3">
-      {cta}
-    </Link>
+    <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center text-4xl mb-6 shadow-inner">{icon}</div>
+    <h3 className="text-xl font-black text-white mb-2 tracking-tight">{title}</h3>
+    <p className="text-dark-500 text-sm font-medium mb-8 max-w-[240px] leading-relaxed">{desc}</p>
+    {ctaLink ? (
+      <Link to={ctaLink} className="btn-premium-v2 py-3 px-10 text-xs">
+        {cta}
+      </Link>
+    ) : (
+      <button onClick={onClick} className="btn-premium-v2 py-3 px-10 text-xs text-white">
+        {cta}
+      </button>
+    )}
   </motion.div>
 );
 
