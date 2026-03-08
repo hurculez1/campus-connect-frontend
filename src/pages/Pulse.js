@@ -14,36 +14,38 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass-card-premium p-5 mb-4 relative overflow-hidden group transition-all duration-500 hover:shadow-2xl ${isAnonymous ? 'border-indigo-500/30 shadow-indigo-500/10' : 'border-white/5 shadow-white/5'
+            className={`glass-card-premium p-6 mb-5 relative overflow-hidden group transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] ${isAnonymous ? 'border-indigo-500/20 bg-indigo-500/[0.02]' : 'border-white/5 bg-white/[0.01]'
                 }`}
         >
             {/* Ghost background for anonymous posts */}
             {isAnonymous && (
-                <div className="absolute -top-10 -right-10 text-9xl opacity-[0.03] pointer-events-none group-hover:opacity-[0.08] transition-opacity">
+                <div className="absolute -top-12 -right-12 text-[10rem] opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-opacity rotate-12">
                     👻
                 </div>
             )}
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-2xl overflow-hidden shadow-2xl border-2 transition-transform duration-500 group-hover:scale-110 ${isAnonymous ? 'border-indigo-500/50 bg-indigo-900/30' : isDating ? 'border-brand-500/50 bg-brand-500/20' : 'border-indigo-500/50 bg-indigo-500/20'
+            <div className="flex items-start justify-between mb-5">
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl overflow-hidden shadow-2xl border-2 transition-transform duration-500 group-hover:rotate-3 group-hover:scale-110 ${isAnonymous ? 'border-indigo-500/40 bg-indigo-900/20' : isDating ? 'border-brand-500/40 bg-brand-500/10' : 'border-indigo-500/40 bg-indigo-500/10'
                         }`}>
                         {isAnonymous ? (
-                            <div className="w-full h-full flex items-center justify-center text-xl drop-shadow-lg">👻</div>
+                            <div className="w-full h-full flex items-center justify-center text-2xl drop-shadow-lg">👻</div>
                         ) : (
                             <img src={post.authorAvatar || `https://ui-avatars.com/api/?name=${post.authorName || post.first_name}&background=random`} alt={post.authorName} className="w-full h-full object-cover" />
                         )}
                     </div>
                     <div>
-                        <h4 className="text-white font-black text-sm tracking-tight leading-none mb-1 flex items-center gap-2">
+                        <h4 className="text-white font-black text-base tracking-tight leading-none mb-1.5 flex items-center gap-2">
                             {isAnonymous ? 'Ghost User' : post.first_name || 'Campus Student'}
-                            {!isAnonymous && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />}
+                            {!isAnonymous && <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />}
                         </h4>
                         <div className="flex items-center gap-2.5">
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isAnonymous ? 'text-indigo-400' : 'text-dark-400'}`}>{post.campus}</span>
+                            <span className={`text-[10px] font-black uppercase tracking-[0.25em] truncate max-w-[150px] block ${isAnonymous ? 'text-indigo-400' : 'text-dark-400'}`} title={post.campus}>
+                                {post.campus}
+                            </span>
                             <span className="w-1 h-1 rounded-full bg-dark-700" />
-                            <span className="text-dark-500 text-[10px] font-black uppercase tracking-tighter opacity-60">
+                            <span className="text-dark-500 text-[10px] font-black uppercase tracking-tighter opacity-70">
                                 {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
@@ -51,38 +53,42 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
                 </div>
 
                 {post.type === 'confession' && (
-                    <div className="px-3 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[9px] font-black uppercase tracking-[0.2em] shadow-lg">
+                    <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[9px] font-black uppercase tracking-[0.25em] shadow-lg backdrop-blur-sm">
                         Confession
                     </div>
                 )}
             </div>
 
             {/* Content */}
-            <p className="text-dark-100 text-[15px] leading-relaxed mb-4 mt-2 font-medium tracking-tight opacity-90 group-hover:opacity-100 transition-opacity">
-                {post.content}
-            </p>
+            <div className="relative">
+               <p className="text-dark-50 text-[16px] leading-[1.6] mb-6 font-medium tracking-tight opacity-95 group-hover:opacity-100 transition-opacity">
+                   {post.content}
+               </p>
+            </div>
 
             {/* Footer / Actions */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                <div className="flex items-center gap-6">
-                    <button onClick={() => onLike(post.id)} className="flex items-center gap-2 group/btn">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
-                            <span className="text-sm group-hover/btn:scale-125 transition-transform">🔥</span>
+            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                <div className="flex items-center gap-8">
+                    <button onClick={() => onLike(post.id)} className="flex items-center gap-2.5 group/btn">
+                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
+                            <span className="text-base group-hover/btn:scale-125 transition-transform">🔥</span>
                         </div>
-                        <span className="text-dark-400 text-xs font-black uppercase tracking-widest group-hover/btn:text-white transition-colors">{post.likes_count || 0}</span>
+                        <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">{post.likes_count || 0}</span>
                     </button>
 
-                    <button onClick={() => onMessage(post.user_id)} className="flex items-center gap-2 group/btn">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-blue-500/20 group-hover/btn:scale-110 active:scale-95`}>
-                            <span className="text-sm group-hover/btn:scale-125 transition-transform">💬</span>
+                    <button onClick={() => onMessage(post.user_id)} className="flex items-center gap-2.5 group/btn">
+                        <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-blue-500/20 group-hover/btn:scale-110 active:scale-95`}>
+                            <span className="text-base group-hover/btn:scale-125 transition-transform">💬</span>
                         </div>
-                        <span className="text-dark-400 text-xs font-black uppercase tracking-widest group-hover/btn:text-white transition-colors">Message</span>
+                        <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">Vibe Check</span>
                     </button>
                 </div>
 
-                <button className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 transition-all active:scale-90">
-                    <span className="text-dark-400 text-sm">📤</span>
-                </button>
+                <div className="flex items-center gap-3">
+                   <button className="w-9 h-9 rounded-2xl flex items-center justify-center bg-white/5 hover:bg-white/10 transition-all active:scale-90 group/share">
+                       <span className="text-dark-400 text-sm group-hover/share:scale-110 transition-transform">📤</span>
+                   </button>
+                </div>
             </div>
         </motion.div>
     );

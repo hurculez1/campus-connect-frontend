@@ -97,67 +97,63 @@ const Profile = () => {
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="glass-card overflow-hidden"
       >
-        {/* Cover */}
-        <div className="relative h-36 overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b, #7c3aed)' }}>
-          <div className="absolute inset-0 opacity-30"
-            style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 0%, transparent 60%)' }} />
+        {/* Cover with Premium Gradient */}
+        <div className="relative h-44 overflow-hidden"
+          style={{ background: 'linear-gradient(225deg, #f43f5e, #f59e0b, #7c3aed, #4f46e5)' }}>
+          <div className="absolute inset-0 opacity-40"
+            style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.4) 0%, transparent 70%)' }} />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 0.1 }} className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
         </div>
 
-        {/* Avatar + Info */}
-        <div className="px-6 pb-6">
-          {/* Avatar row — on mobile: avatar left, edit button right, then name below */}
-          <div className="-mt-12 mb-3">
-            <div className="flex items-start justify-between">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0"
-                  style={{ border: '3px solid rgba(244,63,94,0.6)', background: 'linear-gradient(135deg, #f43f5e20, #f59e0b20)' }}>
-                  {profile?.profile_photo_url ? (
-                    <img src={profile.profile_photo_url} alt={displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl">
-                      {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
-                    </div>
-                  )}
-                </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handlePhotoChange} 
-                  accept="image/jpeg, image/png, image/webp" 
-                  className="hidden" 
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={photoUploadMutation.isLoading}
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm hover:scale-110 active:scale-95 transition-all"
-                  style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
-                  title="Change photo"
-                >
-                  {photoUploadMutation.isLoading ? '⏳' : '📷'}
-                </button>
+        {/* Avatar + Info Overhaul */}
+        <div className="px-8 pb-8">
+          <div className="-mt-16 mb-6 flex items-end justify-between">
+            <div className="relative group">
+              <div className="absolute -inset-1.5 bg-gradient-to-tr from-brand-500 to-yellow-500 rounded-[2.5rem] blur opacity-40 group-hover:opacity-70 transition duration-500" />
+              <div className="relative w-32 h-32 rounded-[2.2rem] overflow-hidden border-[4px] border-[#0f0d0c] shadow-2xl transition-transform duration-500 group-hover:scale-105 group-hover:rotate-2"
+                style={{ background: 'linear-gradient(135deg, #2a2420, #1a1614)' }}>
+                {profile?.profile_photo_url ? (
+                  <img src={profile.profile_photo_url} alt={displayName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-5xl drop-shadow-2xl">
+                    {user?.gender === 'female' ? '👩🏾' : '👨🏿'}
+                  </div>
+                )}
               </div>
-              {/* Edit button — top-right of the row, always visible */}
-              <button
-                onClick={() => setIsEditing(e => !e)}
-                className="btn-glass text-sm px-4 py-2 mt-14"
-              >
-                {isEditing ? '✕ Cancel' : '✏️ Edit'}
+              <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
+              <button onClick={() => fileInputRef.current?.click()} disabled={photoUploadMutation.isLoading}
+                className="absolute -bottom-1 -right-1 w-10 h-10 rounded-2xl flex items-center justify-center text-white text-lg hover:scale-110 active:scale-95 transition-all shadow-2xl border-2 border-dark-950"
+                style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}>
+                {photoUploadMutation.isLoading ? '⏳' : '📸'}
               </button>
             </div>
-            {/* Name and info BELOW avatar — never overlaps on any screen size */}
-            <div className="mt-3 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-black text-white">{displayName} {profile?.last_name || user?.lastName}</h1>
-                {verStatus === 'verified' && (
-                  <span className="text-blue-400 text-sm" title="Verified Student">✓</span>
-                )}
-                {subTier === 'vip' && <span className="badge-vip text-xs">👑 VIP</span>}
-                {subTier === 'premium' && <span className="badge-premium text-xs">⭐ Premium</span>}
+
+            <button onClick={() => setIsEditing(e => !e)}
+              className="px-6 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-widest hover:bg-white/10 hover:border-brand-500/30 transition-all active:scale-95 backdrop-blur-md shadow-xl">
+              {isEditing ? '✕ Cancel' : '✏️ Edit Profile'}
+            </button>
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-3 flex-wrap mb-2">
+              <h1 className="text-3xl font-black text-white tracking-tighter drop-shadow-sm">{displayName} {profile?.last_name || user?.lastName}</h1>
+              <div className="flex gap-2">
+                {verStatus === 'verified' && <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs shadow-lg shadow-blue-500/30" title="Verified Student">✓</span>}
+                {subTier === 'vip' && <span className="px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500 to-amber-600 text-black text-[10px] font-black uppercase tracking-widest shadow-xl">👑 VIP</span>}
+                {subTier === 'premium' && <span className="px-3 py-1 rounded-full bg-gradient-to-r from-brand-500 to-rose-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl">⭐ Premium</span>}
               </div>
-              <p className="text-dark-400 text-sm">🎓 {displayUni}</p>
+            </div>
+            
+            <div className="flex flex-col gap-1.5 mt-2">
+              <div className="flex items-center gap-2 group">
+                <span className="text-xl group-hover:scale-120 transition-transform">🎓</span>
+                <p className="text-dark-100 text-base font-bold tracking-tight truncate max-w-[280px]" title={displayUni}>{displayUni}</p>
+              </div>
               {displayCourse && (
-                <p className="text-dark-500 text-xs mt-0.5">{displayCourse}{displayYear ? ` · Year ${displayYear}` : ''}</p>
+                <div className="flex items-center gap-2 pl-1 opacity-80">
+                   <div className="w-1.5 h-1.5 rounded-full bg-dark-600" />
+                   <p className="text-dark-400 text-sm font-medium">{displayCourse}{displayYear ? ` · Year ${displayYear}` : ''}</p>
+                </div>
               )}
             </div>
           </div>

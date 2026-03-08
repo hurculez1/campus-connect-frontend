@@ -264,6 +264,7 @@ const Discover = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [matchCelebration, setMatchCelebration] = useState(null);
   const [lastDirection, setLastDirection] = useState(null);
+  const [history, setHistory] = useState([]); // Track swipe history
 
   const isDating = mode === 'dating';
 
@@ -292,14 +293,38 @@ const Discover = () => {
     const swipeMap = { right: 'like', left: 'pass', up: 'super_like' };
     const dir = swipeMap[direction] || direction;
     setLastDirection(direction);
+    
+    // Add to history BEFORE incrementing index
+    setHistory(prev => [...prev, { profile, direction }]);
+    
     swipeMutation.mutate({ targetUserId: profile.id, direction: dir, profile: profile });
     setCurrentIndex(prev => prev + 1);
   }, [swipeMutation]);
+
+  const handleBack = () => {
+    if (currentIndex > 0 && history.length > 0) {
+      setCurrentIndex(prev => prev - 1);
+      setHistory(prev => prev.slice(0, -1));
+    }
+  };
 
   const programmaticSwipe = (dir) => {
     if (!currentMatch) return;
     onSwipe(dir, currentMatch);
   };
+
+  // Keyboard Listeners
+  React.useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (matchCelebration) return;
+      if (e.key === 'ArrowLeft') programmaticSwipe('left');
+      if (e.key === 'ArrowRight') programmaticSwipe('right');
+      if (e.key === 'ArrowUp') programmaticSwipe('up');
+      if (e.key === 'Backspace' || e.key === 'z' && (e.ctrlKey || e.metaKey)) handleBack();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentMatch, matchCelebration, history]);
 
   if (isLoading) {
     return (
@@ -322,14 +347,15 @@ const Discover = () => {
     );
   }
 
-  if (currentIndex >= matches.length) {
+  if (currentIndex >= matches.length && matches.length > 0) {
     return (
       <div className="max-w-sm mx-auto flex flex-col items-center justify-center h-[520px] text-center px-10 glass-card-premium border-white/5 shadow-2xl">
         <div className="text-7xl mb-8 animate-bounce">🌟</div>
         <h2 className="text-3xl font-black text-white mb-4 tracking-tighter">All Caught Up!</h2>
         <p className="text-dark-400 mb-10 text-sm font-medium leading-relaxed">You've seen all the students in your area for now.</p>
         <div className="flex flex-col w-full gap-3">
-          <button onClick={() => { setCurrentIndex(0); refetch(); }} className={isDating ? 'btn-premium-v2 py-4 text-sm' : 'btn-study py-4 text-sm'}>🔄 Scan Again</button>
+          <button onClick={() => { setCurrentIndex(0); setHistory([]); refetch(); }} className={isDating ? 'btn-premium-v2 py-4 text-sm' : 'btn-study py-4 text-sm'}>🔄 Scan Again</button>
+          <button onClick={handleBack} className="text-dark-400 text-xs font-black uppercase tracking-widest mt-2 hover:text-white transition-colors">Go Back to Last Profile</button>
           <button onClick={() => window.location.href = '/matches'} className="text-dark-400 text-xs font-black uppercase tracking-widest mt-4 hover:text-white transition-colors">💬 Your Matches</button>
         </div>
       </div>
@@ -376,20 +402,26 @@ const Discover = () => {
           })}
         </div>
 
-        {/* Premium Action Controls placed immediately below cards */}
-        <div className="flex items-center justify-center gap-6 mt-4 z-50 relative pointer-events-auto">
+        {/* Premium Action Controls */}
+        <div className="flex items-center justify-center gap-4 mt-6 z-50 relative pointer-events-auto">
+          {/* Back Button */}
+          <button onClick={handleBack} disabled={currentIndex === 0}
+            className={`w-12 h-12 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-yellow-500 hover:text-yellow-400 hover:border-yellow-500/30 hover:scale-110 active:scale-90 transition-all shadow-xl disabled:opacity-30 disabled:pointer-events-none group`}>
+            <span className="text-xl group-hover:rotate-[-20deg] transition-transform">↩️</span>
+          </button>
+
           <button onClick={() => programmaticSwipe('left')}
-            className="w-14 h-14 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-dark-400 hover:text-white hover:border-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group">
+            className="w-16 h-16 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-dark-400 hover:text-white hover:border-white/20 hover:scale-110 active:scale-90 transition-all shadow-xl group">
             <span className="text-2xl group-hover:rotate-12 transition-transform">✕</span>
           </button>
 
           <button onClick={() => programmaticSwipe('up')}
-            className="w-16 h-16 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-blue-400 hover:text-blue-300 hover:border-blue-400/30 hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-blue-500/10 group">
-            <span className="text-2xl group-hover:scale-125 transition-transform">⭐</span>
+            className="w-18 h-18 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-blue-400 hover:text-blue-300 hover:border-blue-400/30 hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-blue-500/10 group">
+            <span className="text-3xl group-hover:scale-125 transition-transform">⭐</span>
           </button>
 
           <button onClick={() => programmaticSwipe('right')}
-            className={`w-14 h-14 rounded-full flex items-center justify-center border text-white hover:scale-110 active:scale-90 transition-all shadow-2xl group ${isDating ? 'bg-brand-500 border-brand-400 shadow-brand-500/30' : 'bg-indigo-500 border-indigo-400 shadow-indigo-500/30'}`}>
+            className={`w-16 h-16 rounded-full flex items-center justify-center border text-white hover:scale-110 active:scale-90 transition-all shadow-2xl group ${isDating ? 'bg-brand-500 border-brand-400 shadow-brand-500/30' : 'bg-indigo-500 border-indigo-400 shadow-indigo-500/30'}`}>
             <span className="text-2xl group-hover:scale-110 transition-transform">{isDating ? '❤️' : '📚'}</span>
           </button>
         </div>
