@@ -64,11 +64,14 @@ const navItems = [
 
 const Navigation = () => {
   const location = useLocation();
-  const { data: notifications } = useQuery(
+  const { data: notifications, error } = useQuery(
     'notifications',
     () => api.get('/users/notification-count').then(res => res.data),
-    { refetchInterval: 30000, retry: false }
+    { refetchInterval: 10000, retry: 2 }
   );
+
+  // Debug log
+  console.log('Notifications:', notifications, 'Error:', error);
 
   return (
     <>

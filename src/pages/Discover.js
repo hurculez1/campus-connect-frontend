@@ -418,6 +418,7 @@ const Discover = () => {
     (targetUserId) => api.post('/matches/direct', { targetUserId }),
     {
       onSuccess: (res) => {
+        console.log('Direct match response:', res.data);
         if (res.data.matchId) {
           // Show match celebration
           const profile = matches[currentIndex];
@@ -426,6 +427,9 @@ const Discover = () => {
           }
         }
       },
+      onError: (err) => {
+        console.error('Direct match error:', err);
+      }
     }
   );
 

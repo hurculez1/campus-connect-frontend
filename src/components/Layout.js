@@ -23,33 +23,33 @@ const Layout = () => {
     <div className={`min-h-screen transition-colors duration-700 ease-in-out ${isDating ? 'bg-mesh-dating mode-dating' : 'bg-mesh-study mode-study'}`}>
       {/* Header */}
       <header className="sticky top-0 z-50 glass-nav">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             {/* Sidebar Toggle & Logo */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1 sm:gap-4">
               <button 
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2 -ml-2 rounded-xl text-dark-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
+                className="p-1.5 sm:p-2 -ml-1 rounded-lg sm:rounded-xl text-dark-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
               >
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
 
-              <Link to="/discover" className="flex items-center gap-2.5 group">
+              <Link to="/discover" className="flex items-center gap-1.5 sm:gap-2.5 group">
                 <img
                   src="/logo.png"
                   alt="Campus Connect Logo"
-                  className={`w-12 h-12 sm:w-16 sm:h-16 object-contain transition-all duration-700 hover:scale-110 active:scale-95 ${isDating ? 'drop-shadow-[0_0_15px_rgba(244,63,94,0.7)]' : 'drop-shadow-[0_0_15px_rgba(99,102,241,0.7)]'}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 object-contain transition-all duration-700 hover:scale-110 active:scale-95 ${isDating ? 'drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]' : 'drop-shadow-[0_0_10px_rgba(99,102,241,0.7)]'}`}
                 />
-                <span className="hidden sm:block text-white font-black text-xs lg:text-xl tracking-tight">
+                <span className="hidden md:block text-white font-black text-xs lg:text-xl tracking-tight">
                   Campus<span className={isDating ? 'text-brand-400' : 'text-indigo-400'}>Connect</span>
                 </span>
               </Link>
 
 
-              {/* World Class Mode Switcher 🛠️ */}
-              <div className="flex items-center ml-1 sm:ml-2">
+              {/* World Class Mode Switcher - hidden on small screens */}
+              <div className="hidden xs:flex items-center ml-1 sm:ml-2">
                 <button
                   onClick={toggleMode}
                   className="mode-switch-track cursor-pointer group"
@@ -63,7 +63,7 @@ const Layout = () => {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-1 sm:gap-4">
               {/* Upgrade badge for free users */}
               {user?.subscriptionTier === 'free' && (
                 <Link
