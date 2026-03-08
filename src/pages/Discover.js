@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
@@ -297,6 +298,23 @@ const Discover = () => {
   const swipeLimit = potentialMatches?.swipeLimit;
   const currentMatch = matches[currentIndex];
 
+  const navigate = useNavigate();
+
+  const handleDirectMatch = async (userId) => {
+    if (!userId) return;
+    try {
+      const res = await api.post('/matches/direct', { targetUserId: userId });
+      if (res.data.matchId) {
+        navigate(`/chat/${res.data.matchId}`);
+      } else {
+        navigate('/matches');
+      }
+    } catch (err) {
+      console.error('Direct match failed:', err);
+      navigate('/matches');
+    }
+  };
+
   const onSwipe = useCallback((direction, profile) => {
     const swipeMap = { right: 'like', left: 'pass', up: 'super_like' };
     const dir = swipeMap[direction] || direction;
@@ -457,6 +475,11 @@ const Discover = () => {
           <button onClick={() => programmaticSwipe('up')}
             className="w-18 h-18 rounded-full flex items-center justify-center bg-dark-900 border border-white/5 text-blue-400 hover:text-blue-300 hover:border-blue-400/30 hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-blue-500/10 group">
             <span className="text-3xl group-hover:scale-125 transition-transform">⭐</span>
+          </button>
+
+          <button onClick={() => handleDirectMatch(currentMatch.id)}
+            className={`btn-premium-v2 px-8 py-4 flex items-center justify-center gap-3 text-xs shadow-2xl transition-all hover:scale-110 active:scale-95 ${isDating ? 'bg-brand-500 border-brand-400' : 'bg-indigo-500 border-indigo-400'}`}>
+            <span>❤️</span> Match Now
           </button>
 
           <button onClick={() => programmaticSwipe('right')}
