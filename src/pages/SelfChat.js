@@ -1,17 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
+import { format, isToday, isYesterday } from 'date-fns';
+import ImageModal from '../components/ImageModal';
+
+const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆'];
 
 const SelfChat = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const handleSend = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!message.trim()) return;
     
     const newMessage = {
@@ -19,11 +27,49 @@ const SelfChat = () => {
       content: message,
       created_at: new Date().toISOString(),
       sender_id: user.id,
-      is_read: true
+      is_read: true,
+      message_type: 'text'
     };
     
     setMessages([...messages, newMessage]);
     setMessage('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const addEmoji = (emoji) => {
+    setMessage(prev => prev + emoji);
+    inputRef.current?.focus();
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // For now, just show the image in the chat (would need backend for real upload)
+      const imageUrl = URL.createObjectURL(file);
+      const newMessage = {
+        id: Date.now(),
+        content: '[Image]',
+        created_at: new Date().toISOString(),
+        sender_id: user.id,
+        is_read: true,
+        message_type: 'image',
+        imageUrl: imageUrl
+      };
+      setMessages([...messages, newMessage]);
+    }
+  };
+
+  const formatMsgTime = (ts) => {
+    const d = new Date(ts);
+    if (isToday(d)) return format(d, 'h:mm a');
+    if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
+    return format(d, 'MMM d, h:mm a');
   };
 
   useEffect(() => {
@@ -55,7 +101,7 @@ const SelfChat = () => {
 
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-white">My Notes</h2>
-          <p className="text-xs text-yellow-400">💭 Chat with yourself</p>
+          <p className="text-xs text-yellow-400">💭 Personal space</p>
         </div>
       </div>
 
@@ -73,8 +119,20 @@ const SelfChat = () => {
 
         {messages.map((msg) => (
           <div key={msg.id} className="flex justify-end mb-1">
-            <div className="bg-yellow-500/20 border border-yellow-500/30 px-4 py-2.5 rounded-2xl rounded-br-md max-w-[80%]">
-              <p className="text-white text-sm">{msg.content}</p>
+            <div className="flex flex-col items-end max-w-[80%]">
+              {msg.message_type === 'image' && msg.imageUrl ? (
+                <div 
+                  className="rounded-2xl overflow-hidden cursor-zoom-in max-w-[250px]"
+                  onClick={() => setFullscreenImage(msg.imageUrl)}
+                >
+                  <img src={msg.imageUrl} alt="Shared" className="w-full h-auto" />
+                </div>
+              ) : (
+                <div className="bg-yellow-500/20 border border-yellow-500/30 px-4 py-2.5 rounded-2xl rounded-br-md">
+                  <p className="text-white text-sm">{msg.content}</p>
+                </div>
+              )}
+              <span className="text-[10px] text-dark-500 mt-1">{formatMsgTime(msg.created_at)}</span>
             </div>
           </div>
         ))}
@@ -82,16 +140,58 @@ const SelfChat = () => {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Emoji Picker */}
+      {showEmojis && (
+        <div className="flex-shrink-0 px-4 py-3 bg-dark-900 border-t border-white/10">
+          <div className="flex flex-wrap gap-2">
+            {EMOJIS.map((emoji, i) => (
+              <button
+                key={i}
+                onClick={() => addEmoji(emoji)}
+                className="text-2xl hover:scale-125 transition-transform"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="flex-shrink-0 px-4 py-3"
         style={{ background: 'rgba(15,13,12,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <form onSubmit={handleSend} className="flex items-end gap-3">
+        <form onSubmit={handleSend} className="flex items-end gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-dark-400 hover:text-white transition-colors"
+          >
+            📷
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowEmojis(!showEmojis)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showEmojis ? 'bg-yellow-500 text-white' : 'bg-white/10 text-dark-400 hover:text-white'}`}
+          >
+            😊
+          </button>
+
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Write a note to yourself..."
+              onKeyDown={handleKeyDown}
+              placeholder="Write a note..."
               rows={1}
               className="w-full px-4 py-2.5 rounded-2xl resize-none font-medium text-dark-50 placeholder:text-dark-500 text-sm bg-white/10 border border-white/10 focus:outline-none"
             />
@@ -106,6 +206,12 @@ const SelfChat = () => {
           </button>
         </form>
       </div>
+
+      <ImageModal 
+        src={fullscreenImage} 
+        isOpen={!!fullscreenImage} 
+        onClose={() => setFullscreenImage(null)} 
+      />
     </div>
   );
 };

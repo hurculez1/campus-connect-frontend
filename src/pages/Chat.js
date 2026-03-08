@@ -52,6 +52,7 @@ const Chat = () => {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [message, setMessage] = useState('');
   const [socket, setSocket] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -62,6 +63,24 @@ const Chat = () => {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [showUserInfo, setShowUserInfo] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const sendImageMutation = useMutation(
+    (formData) => api.post(`/chat/${matchId}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    {
+      onSuccess: () => queryClient.invalidateQueries(['messages', matchId]),
+    }
+  );
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('image', file);
+      sendImageMutation.mutate(formData);
+    }
+    e.target.value = '';
+  };
 
   const { data: messages, isLoading } = useQuery(
     ['messages', matchId],
@@ -378,9 +397,24 @@ const Chat = () => {
       {/* ─ Input Area ─ */}
       <div className="flex-shrink-0 px-4 py-3"
         style={{ background: 'rgba(15,13,12,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <form onSubmit={handleSend} className="flex items-end gap-3">
+        <form onSubmit={handleSend} className="flex items-end gap-2">
           {/* Toolbar buttons */}
           <div className="flex gap-1 mb-0.5">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white/5 text-dark-400 hover:text-white transition-colors"
+              title="Send Image"
+            >
+              📷
+            </button>
             <button
               type="button"
               onClick={() => { setShowIcebreakers(s => !s); setShowEmojis(false); }}
