@@ -2,10 +2,29 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { motion } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
+
+const formatMessageTime = (dateStr, unread) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  
+  if (unread) {
+    // Show actual date for unread messages
+    if (isToday(date)) {
+      return format(date, 'h:mm a');
+    } else if (isYesterday(date)) {
+      return 'Yesterday';
+    } else {
+      return format(date, 'MMM d');
+    }
+  }
+  
+  // Show time ago for read messages
+  return formatDistanceToNow(date, { addSuffix: true });
+};
 
 const Matches = () => {
   const [activeTab, setActiveTab] = useState('chats');
@@ -310,9 +329,7 @@ const LoadingStack = () => (
 
 const MatchCard = ({ match, index, onPhotoTap }) => {
   const unread = match.unread_count || 0;
-  const timeAgo = match.last_message_at
-    ? formatDistanceToNow(new Date(match.last_message_at), { addSuffix: true })
-    : formatDistanceToNow(new Date(match.matched_at), { addSuffix: true });
+  const timeAgo = formatMessageTime(match.last_message_at || match.matched_at, unread);
 
   return (
     <motion.div
@@ -376,9 +393,7 @@ const MatchCard = ({ match, index, onPhotoTap }) => {
 
 const ConnectionCard = ({ connection, index, onPhotoTap }) => {
   const unread = connection.unread_count || 0;
-  const timeAgo = connection.last_message_at
-    ? formatDistanceToNow(new Date(connection.last_message_at), { addSuffix: true })
-    : formatDistanceToNow(new Date(connection.created_at), { addSuffix: true });
+  const timeAgo = formatMessageTime(connection.last_message_at || connection.created_at, unread);
 
   return (
     <motion.div

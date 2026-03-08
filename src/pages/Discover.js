@@ -414,6 +414,21 @@ const Discover = () => {
     }
   );
 
+  const directMatchMutation = useMutation(
+    (targetUserId) => api.post('/matches/direct', { targetUserId }),
+    {
+      onSuccess: (res) => {
+        if (res.data.matchId) {
+          // Show match celebration
+          const profile = matches[currentIndex];
+          if (profile) {
+            setMatchCelebration({ id: profile.id, firstName: profile.first_name });
+          }
+        }
+      },
+    }
+  );
+
   const matches = potentialMatches?.matches || [];
   const swipeLimit = potentialMatches?.swipeLimit;
   const currentMatch = matches[currentIndex];
@@ -602,14 +617,14 @@ const Discover = () => {
           <button onClick={() => {
             const profile = matches[currentIndex];
             if (profile?.id) {
-              // Perform a like swipe to create match
-              swipeMutation.mutate({ targetUserId: profile.id, direction: 'like', profile: profile });
+              // Create direct match
+              directMatchMutation.mutate(profile.id);
               // Move to next card
               setTimeout(() => {
                 setLastDirection('right');
                 setHistory(prev => [...prev, { profile, direction: 'right' }]);
                 setCurrentIndex(prev => prev + 1);
-              }, 300);
+              }, 500);
             }
           }}
             className={`w-full max-w-[260px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 font-black uppercase tracking-widest rounded-2xl ${isDating ? 'bg-gradient-to-r from-brand-500 to-rose-500 border-2 border-brand-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500 border-2 border-indigo-400'} text-white`}>
