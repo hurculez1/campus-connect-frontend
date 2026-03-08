@@ -24,8 +24,8 @@ const PLANS = [
       { text: 'See who liked you', ok: false },
       { text: 'Unlimited swipes', ok: false },
     ],
-    cta: 'Current Plan',
-    ctaDisabled: true,
+    cta: 'Downgrade to Free',
+    ctaDisabled: false,
     tier: 'free',
   },
   {

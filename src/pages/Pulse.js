@@ -14,7 +14,7 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
             layout
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass-card-premium p-6 mb-5 relative overflow-hidden group transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] ${isAnonymous ? 'border-indigo-500/20 bg-indigo-500/[0.02]' : 'border-white/5 bg-white/[0.01]'
+            className={`glass-card-premium p-6 mb-8 relative overflow-hidden group transition-all duration-700 hover:shadow-[0_30px_60px_rgba(0,0,0,0.5)] border-l-4 ${isAnonymous ? 'border-indigo-500 bg-indigo-500/[0.03]' : 'border-brand-500 bg-white/[0.02]'
                 }`}
         >
             {/* Ghost background for anonymous posts */}
@@ -41,7 +41,7 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
                             {!isAnonymous && <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />}
                         </h4>
                         <div className="flex items-center gap-2.5">
-                            <span className={`text-[10px] font-black uppercase tracking-[0.25em] truncate max-w-[150px] block ${isAnonymous ? 'text-indigo-400' : 'text-dark-400'}`} title={post.campus}>
+                            <span className={`text-[10px] font-black uppercase tracking-[0.25em] block ${isAnonymous ? 'text-indigo-400' : 'text-dark-300'}`}>
                                 {post.campus}
                             </span>
                             <span className="w-1 h-1 rounded-full bg-dark-700" />
