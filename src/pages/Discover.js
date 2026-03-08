@@ -136,7 +136,15 @@ const ProfileCard = ({ profile, mode }) => {
     parsedInterests = [];
   }
   const interests = Array.isArray(parsedInterests) ? parsedInterests : [];
-  const photos = profile.photos?.length ? profile.photos : [profile.profile_photo_url].filter(Boolean);
+  let parsedPhotos = [];
+  try {
+    const rawPhotos = typeof profile.photos === 'string' ? JSON.parse(profile.photos) : profile.photos;
+    if (Array.isArray(rawPhotos) && rawPhotos.length > 0) {
+      parsedPhotos = rawPhotos.map(p => p.url || p).filter(Boolean);
+    }
+  } catch(e) {}
+  
+  const photos = parsedPhotos.length > 0 ? parsedPhotos : [profile.profile_photo_url].filter(Boolean);
 
   const handleGoToChat = async (e) => {
     e.stopPropagation();
