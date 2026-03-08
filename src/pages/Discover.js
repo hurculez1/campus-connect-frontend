@@ -395,15 +395,15 @@ const Discover = () => {
               {/* Tap-to-swipe Arrows - Now visible on mobile too */}
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
-                className="absolute left-[-20px] lg:left-[-60px] top-1/2 -translate-y-1/2 z-50 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-xl lg:text-2xl text-white shadow-2xl backdrop-blur-md hover:bg-white hover:text-black transition-all active:scale-75"
+                className="absolute left-2 lg:left-[-60px] top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-brand-500 hover:text-white transition-all active:scale-75 group ring-1 ring-white/10"
               >
-                ←
+                <span className="group-hover:-translate-x-1 transition-transform">←</span>
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
-                className="absolute right-[-20px] lg:right-[-60px] top-1/2 -translate-y-1/2 z-50 w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-xl lg:text-2xl text-white shadow-2xl backdrop-blur-md hover:bg-white hover:text-black transition-all active:scale-75"
+                className="absolute right-2 lg:right-[-60px] top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/40 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-brand-500 hover:text-white transition-all active:scale-75 group ring-1 ring-white/10"
               >
-                →
+                <span className="group-hover:translate-x-1 transition-transform">→</span>
               </button>
 
               {/* Back Button */}
