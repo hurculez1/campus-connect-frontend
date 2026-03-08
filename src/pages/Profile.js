@@ -37,19 +37,18 @@ const Profile = () => {
     (file) => {
       const form = new FormData();
       form.append('photo', file);
-      return api.post('/users/photos', form, {
+      return api.post('/users/photos?profile=true', form, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
     },
     {
       onSuccess: (response) => {
         queryClient.invalidateQueries('profile');
-        // Sync the new photo URL into the global auth store so the header avatar updates too
         updateUser({ 
           profile_photo_url: response.data.photo.url,
           profilePhotoUrl: response.data.photo.url 
         });
-        toast.success('📷 Photo uploaded successfully!');
+        toast.success('📷 Profile photo updated!');
       },
       onError: (err) => {
         toast.error(err.response?.data?.message || 'Failed to upload photo');
