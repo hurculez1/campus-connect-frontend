@@ -129,7 +129,13 @@ const ProfileCard = ({ profile, mode }) => {
   const age = profile.date_of_birth
     ? Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
-  const interests = profile.interests ? JSON.parse(profile.interests) : [];
+  let parsedInterests = [];
+  try {
+    parsedInterests = profile.interests ? (typeof profile.interests === 'string' ? JSON.parse(profile.interests) : profile.interests) : [];
+  } catch (e) {
+    parsedInterests = [];
+  }
+  const interests = Array.isArray(parsedInterests) ? parsedInterests : [];
   const photos = profile.photos?.length ? profile.photos : [profile.profile_photo_url].filter(Boolean);
 
   const handleGoToChat = async (e) => {
