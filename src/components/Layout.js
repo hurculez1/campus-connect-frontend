@@ -48,16 +48,16 @@ const Layout = () => {
               </Link>
 
 
-              {/* World Class Mode Switcher - hidden on small screens */}
-              <div className="hidden xs:flex items-center ml-1 sm:ml-2">
+              {/* Mode Switcher - always visible */}
+              <div className="flex items-center ml-1">
                 <button
                   onClick={toggleMode}
                   className="mode-switch-track cursor-pointer group"
                   aria-label="Toggle Study/Dating Mode"
                 >
                   <div className="mode-switch-thumb" />
-                  <span className={`mode-btn text-[8px] sm:text-[10px] ${isDating ? 'text-white' : 'text-dark-500'}`}>Dating</span>
-                  <span className={`mode-btn text-[8px] sm:text-[10px] ${!isDating ? 'text-white' : 'text-dark-500'}`}>Study</span>
+                  <span className={`mode-btn text-[7px] sm:text-[10px] ${isDating ? 'text-white' : 'text-dark-500'}`}>Dating</span>
+                  <span className={`mode-btn text-[7px] sm:text-[10px] ${!isDating ? 'text-white' : 'text-dark-500'}`}>Study</span>
                 </button>
               </div>
             </div>
