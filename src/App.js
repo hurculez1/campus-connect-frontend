@@ -10,6 +10,7 @@ import Discover from './pages/Discover';
 import Matches from './pages/Matches';
 import Chat from './pages/Chat';
 import ConnectionChat from './pages/ConnectionChat';
+import SelfChat from './pages/SelfChat';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Subscription from './pages/Subscription';
@@ -56,6 +57,10 @@ function App() {
         <Route
           path="/chat/:matchId"
           element={isAuthenticated ? <Chat /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/chat/self"
+          element={isAuthenticated ? <SelfChat /> : <Navigate to="/login" />}
         />
         <Route
           path="/connection/:connectionId"

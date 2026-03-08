@@ -5,10 +5,12 @@ import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
+import { useAuthStore } from '../stores/authStore';
 
 const Matches = () => {
   const [activeTab, setActiveTab] = useState('chats');
   const [fullscreenImage, setFullscreenImage] = useState(null);
+  const { user } = useAuthStore();
 
   const { data: matchesData, isLoading: matchesLoading } = useQuery(
     'matches',
@@ -126,18 +128,75 @@ const Matches = () => {
                 />
               ) : (
                 <>
+                  {/* Self Chat */}
+                  {user && (
+                    <Link
+                      to={`/chat/self`}
+                      className="flex items-center gap-4 p-4 group transition-all duration-300 border-b border-white/5 hover:bg-white/5"
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl ring-2 ring-yellow-500/50">
+                          {user.profile_photo_url || user.profilePhotoUrl ? (
+                            <img src={user.profile_photo_url || user.profilePhotoUrl} alt="Me" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20">
+                              👤
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-base text-yellow-400">My Notes</h4>
+                        <p className="text-sm text-dark-400 font-medium">Chat with yourself 💭</p>
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Unread Chats */}
+                  {chats.filter(c => c.unread_count > 0).length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex-1 h-px bg-brand-500/30" />
+                        <span className="text-brand-400 text-[10px] font-black uppercase tracking-widest">Unread</span>
+                        <div className="flex-1 h-px bg-brand-500/30" />
+                      </div>
+                      {chats.filter(c => c.unread_count > 0).map((match, i) => (
+                        <MatchCard 
+                          key={match.match_id} 
+                          match={match} 
+                          index={i} 
+                          onPhotoTap={setFullscreenImage}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Read Chats */}
+                  {chats.filter(c => !c.unread_count || c.unread_count === 0).length > 0 && (
+                    <div>
+                      {chats.filter(c => c.unread_count > 0).length > 0 && (
+                        <div className="flex items-center gap-3 py-2">
+                          <div className="flex-1 h-px bg-white/10" />
+                          <span className="text-dark-500 text-[10px] font-black uppercase tracking-widest">All Messages</span>
+                          <div className="flex-1 h-px bg-white/10" />
+                        </div>
+                      )}
+                      {chats.filter(c => !c.unread_count || c.unread_count === 0).map((match, i) => (
+                        <MatchCard 
+                          key={match.match_id} 
+                          match={match} 
+                          index={i} 
+                          onPhotoTap={setFullscreenImage}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Connections */}
                   {allConnections.map((conn, i) => (
                     <ConnectionCard 
                       key={conn.id} 
                       connection={conn} 
-                      index={i} 
-                      onPhotoTap={setFullscreenImage}
-                    />
-                  ))}
-                  {chats.map((match, i) => (
-                    <MatchCard 
-                      key={match.match_id} 
-                      match={match} 
                       index={i} 
                       onPhotoTap={setFullscreenImage}
                     />
@@ -263,7 +322,7 @@ const MatchCard = ({ match, index, onPhotoTap }) => {
     >
       <Link
         to={`/chat/${match.match_id}`}
-        className="glass-card-premium flex items-center gap-4 p-4 group transition-all duration-300 hover:translate-x-2 border-white/5 hover:border-brand-500/30"
+        className={`flex items-center gap-4 p-4 group transition-all duration-300 border-b border-white/5 ${unread > 0 ? 'bg-brand-500/5' : 'hover:bg-white/5'}`}
       >
         {/* Avatar */}
         <div className="relative flex-shrink-0">
@@ -273,44 +332,38 @@ const MatchCard = ({ match, index, onPhotoTap }) => {
               e.stopPropagation();
               onPhotoTap(match.profile_photo_url);
             }}
-            className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-brand-500/10 transition-shadow cursor-zoom-in"
+            className={`w-14 h-14 rounded-2xl overflow-hidden shadow-xl transition-shadow cursor-zoom-in ${unread > 0 ? 'ring-2 ring-brand-500/50' : ''}`}
           >
             {match.profile_photo_url ? (
               <img src={match.profile_photo_url} alt={match.first_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-3xl"
+              <div className="w-full h-full flex items-center justify-center text-2xl"
                 style={{ background: 'linear-gradient(135deg, #2a2420, #171514)' }}>
                 👤
               </div>
             )}
           </div>
-          <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-dark-950 flex items-center justify-center ${
+          <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-dark-950 flex items-center justify-center ${
             match.last_active && (new Date() - new Date(match.last_active)) < 300000 ? 'bg-green-500' : 'bg-dark-600'
           }`}>
-             {match.last_active && (new Date() - new Date(match.last_active)) < 300000 && (
-               <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-             )}
           </div>
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h4 className="text-white font-black text-base tracking-tight truncate group-hover:text-brand-400 transition-colors">
+          <div className="flex items-center justify-between mb-0.5">
+            <h4 className={`font-bold text-base tracking-tight truncate ${unread > 0 ? 'text-white' : 'text-dark-200'}`}>
               {match.first_name} {match.last_name}
             </h4>
-            <span className="text-dark-500 text-[10px] font-black uppercase tracking-widest">{timeAgo}</span>
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-dark-400 text-[10px] font-black uppercase tracking-widest truncate">{match.university}</span>
+            <span className="text-dark-500 text-[10px] font-medium">{timeAgo}</span>
           </div>
           
-          <div className="flex items-center justify-between gap-4">
-            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white' : 'text-dark-400'}`}>
-              {match.last_message || '✨ Say hi to your new match!'}
+          <div className="flex items-center justify-between gap-2">
+            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white font-bold' : 'text-dark-400'}`}>
+              {match.last_message || '✨ New match!'}
             </p>
             {unread > 0 && (
-              <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-brand-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-brand-500/30">
+              <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {unread}
               </span>
             )}
@@ -335,7 +388,7 @@ const ConnectionCard = ({ connection, index, onPhotoTap }) => {
     >
       <Link
         to={`/connection/${connection.id}`}
-        className="glass-card-premium flex items-center gap-4 p-4 group transition-all duration-300 hover:translate-x-2 border-white/5 hover:border-indigo-500/30"
+        className={`flex items-center gap-4 p-4 group transition-all duration-300 border-b border-white/5 ${unread > 0 ? 'bg-indigo-500/5' : 'hover:bg-white/5'}`}
       >
         {/* Avatar */}
         <div className="relative flex-shrink-0">
@@ -345,40 +398,36 @@ const ConnectionCard = ({ connection, index, onPhotoTap }) => {
               e.stopPropagation();
               onPhotoTap(connection.profile_photo_url);
             }}
-            className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl group-hover:shadow-indigo-500/10 transition-shadow cursor-zoom-in"
+            className={`w-14 h-14 rounded-2xl overflow-hidden shadow-xl transition-shadow cursor-zoom-in ${unread > 0 ? 'ring-2 ring-indigo-500/50' : ''}`}
           >
             {connection.profile_photo_url ? (
               <img src={connection.profile_photo_url} alt={connection.first_name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-3xl"
+              <div className="w-full h-full flex items-center justify-center text-2xl"
                 style={{ background: 'linear-gradient(135deg, #2a2420, #171514)' }}>
                 👤
               </div>
             )}
           </div>
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-dark-950 bg-indigo-500 flex items-center justify-center">
-            <span className="text-[8px]">💬</span>
+          <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-dark-950 bg-indigo-500 flex items-center justify-center">
           </div>
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h4 className="text-white font-black text-base tracking-tight truncate group-hover:text-indigo-400 transition-colors">
+          <div className="flex items-center justify-between mb-0.5">
+            <h4 className={`font-bold text-base tracking-tight truncate ${unread > 0 ? 'text-white' : 'text-dark-200'}`}>
               {connection.first_name} {connection.last_name || ''}
             </h4>
-            <span className="text-dark-500 text-[10px] font-black uppercase tracking-widest">{timeAgo}</span>
-          </div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-dark-400 text-[10px] font-black uppercase tracking-widest truncate">{connection.university}</span>
+            <span className="text-dark-500 text-[10px] font-medium">{timeAgo}</span>
           </div>
           
-          <div className="flex items-center justify-between gap-4">
-            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white' : 'text-dark-400'}`}>
-              {connection.last_message || '💬 Start a conversation!'}
+          <div className="flex items-center justify-between gap-2">
+            <p className={`text-sm truncate font-medium ${unread > 0 ? 'text-white font-bold' : 'text-dark-400'}`}>
+              {connection.last_message || '💬 Start chatting!'}
             </p>
             {unread > 0 && (
-              <span className="flex-shrink-0 w-5 h-5 rounded-lg bg-indigo-500 text-white text-[10px] font-black flex items-center justify-center shadow-lg shadow-indigo-500/30">
+              <span className="flex-shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {unread}
               </span>
             )}

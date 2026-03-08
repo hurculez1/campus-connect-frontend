@@ -600,13 +600,26 @@ const Discover = () => {
         {/* Primary Action Control */}
         <div className="flex items-center justify-center mt-5 mb-2 group-shrink-0 z-50 relative pointer-events-auto">
           <button onClick={() => {
-            if (currentMatch?.id) {
-              handleDirectMatch(currentMatch.id);
+            const profile = matches[currentIndex];
+            if (profile?.id) {
+              handleDirectMatch(profile.id);
             }
           }}
-            className={`btn-premium-v2 w-full max-w-[260px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 ${isDating ? 'bg-brand-500 border-brand-400' : 'bg-indigo-500 border-indigo-400'}`}>
-            <span>❤️</span> Connect Now
+            className={`w-full max-w-[260px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 font-black uppercase tracking-widest rounded-2xl ${isDating ? 'bg-gradient-to-r from-brand-500 to-rose-500 border-2 border-brand-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500 border-2 border-indigo-400'} text-white`}>
+            <span className="text-lg">❤️</span> Match Now
           </button>
+        </div>
+
+        {/* Swipe Hint */}
+        <div className="flex items-center justify-center gap-8 py-2 text-dark-500 text-xs font-bold">
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">✕</span>
+            <span>Pass</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">❤️</span>
+            <span>Like</span>
+          </div>
         </div>
 
         {/* Direction feedback overlay */}
