@@ -193,8 +193,8 @@ const Profile = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-dark-200 mb-2">Year of Study</label>
-                  <select value={formData.yearOfStudy ?? displayYear}
-                    onChange={e => setFormData({ ...formData, yearOfStudy: e.target.value })}
+                  <select value={formData.year_of_study ?? displayYear}
+                    onChange={e => setFormData({ ...formData, year_of_study: e.target.value })}
                     className="input">
                     {[1, 2, 3, 4, 5, 6].map(y => <option key={y} value={y}>Year {y}</option>)}
                     <option value="postgrad">Postgraduate</option>

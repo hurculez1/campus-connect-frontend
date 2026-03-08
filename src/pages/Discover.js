@@ -35,13 +35,16 @@ const SwipeCard = ({ onSwipe, mode, children }) => {
       onDragEnd={handleDragEnd}
       whileTap={{ cursor: 'grabbing' }}
     >
-      <motion.div style={{ opacity: likeOpacity }} className="swipe-indicator like">
+      <motion.div 
+        style={{ opacity: likeOpacity }} 
+        className="absolute top-8 right-8 z-50 py-2 px-6 border-4 border-green-500 text-green-500 font-black text-4xl rounded-xl rotate-12 bg-white/10 backdrop-blur-md pointer-events-none"
+      >
         {isDating ? 'LIKE ❤️' : 'STUDY 📚'}
       </motion.div>
-      <motion.div style={{ opacity: nopeOpacity }} className="swipe-indicator nope">
-        NOPE
-      </motion.div>
-      <motion.div style={{ opacity: nopeOpacity }} className="swipe-indicator nope">
+      <motion.div 
+        style={{ opacity: nopeOpacity }} 
+        className="absolute top-8 left-8 z-50 py-2 px-6 border-4 border-red-500 text-red-500 font-black text-4xl rounded-xl -rotate-12 bg-white/10 backdrop-blur-md pointer-events-none"
+      >
         NOPE
       </motion.div>
       {children}
@@ -150,8 +153,13 @@ const ProfileCard = ({ profile, mode }) => {
     e.stopPropagation();
     try {
       const res = await api.post('/matches/direct', { targetUserId: profile.id });
-      window.location.href = `/chat/${res.data.matchId}`;
+      if (res.data.matchId) {
+        window.location.href = `/chat/${res.data.matchId}`;
+      } else {
+        window.location.href = '/matches';
+      }
     } catch (err) {
+      console.error('Direct chat failed from Discover:', err);
       window.location.href = '/matches';
     }
   };
@@ -382,6 +390,35 @@ const Discover = () => {
 
         {/* Swipe Stack */}
         <div className="relative perspective-lg w-full h-[65vh] max-h-[500px] min-h-[420px]">
+          {currentIndex < matches.length && (
+            <>
+              {/* Tap-to-swipe Arrows */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
+                className="absolute left-[-60px] top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-dark-400 hover:bg-white/10 hover:text-white transition-all hidden lg:flex"
+              >
+                ←
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
+                className="absolute right-[-60px] top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl text-dark-400 hover:bg-white/10 hover:text-white transition-all hidden lg:flex"
+              >
+                →
+              </button>
+
+              {/* Back Button */}
+              {history.length > 0 && (
+                <button 
+                  onClick={handleBack}
+                  className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 z-50 w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl text-dark-400 hover:bg-white/10 hover:text-white transition-all group"
+                  title="Swipe Back (Undo)"
+                >
+                  <span className="group-hover:rotate-[-45deg] transition-transform">↺</span>
+                </button>
+              )}
+            </>
+          )}
+
           {matches.slice(currentIndex, currentIndex + 3).map((match, stackIdx) => {
             const isTop = stackIdx === 0;
             return (

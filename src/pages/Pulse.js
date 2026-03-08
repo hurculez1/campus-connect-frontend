@@ -32,7 +32,7 @@ const PostCard = ({ post, mode, onLike, onMessage }) => {
                         {isAnonymous ? (
                             <div className="w-full h-full flex items-center justify-center text-2xl drop-shadow-lg">👻</div>
                         ) : (
-                            <img src={post.authorAvatar || `https://ui-avatars.com/api/?name=${post.authorName || post.first_name}&background=random`} alt={post.authorName} className="w-full h-full object-cover" />
+                            <img src={post.profile_photo_url || `https://ui-avatars.com/api/?name=${post.first_name}&background=random`} alt={post.first_name} className="w-full h-full object-cover" />
                         )}
                     </div>
                     <div>
@@ -162,9 +162,15 @@ const Pulse = () => {
              return;
         }
         try {
+            // This will find an existing match OR create a new one instantly 
             const res = await api.post('/matches/direct', { targetUserId: userId });
-            window.location.href = `/chat/${res.data.matchId}`;
+            if (res.data.matchId) {
+                window.location.href = `/chat/${res.data.matchId}`;
+            } else {
+                window.location.href = '/matches';
+            }
         } catch (err) {
+            console.error('Direct chat failed:', err);
             window.location.href = '/matches';
         }
     };

@@ -2,9 +2,11 @@ import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import Navigation from './Navigation';
+import Sidebar from './Sidebar';
 
 const Layout = () => {
   const { user, mode, toggleMode } = useAuthStore();
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const isDating = mode === 'dating';
 
   // Always force dark mode
@@ -19,8 +21,17 @@ const Layout = () => {
       <header className="sticky top-0 z-50 glass-nav">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo & Mode Switcher */}
-            <div className="flex items-center gap-6">
+            {/* Sidebar Toggle & Logo */}
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 -ml-2 rounded-xl text-dark-400 hover:text-white hover:bg-white/5 transition-all active:scale-90"
+              >
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
               <Link to="/discover" className="flex items-center gap-2.5 group">
                 <img
                   src={`${process.env.PUBLIC_URL}/logo.png`}
@@ -113,6 +124,9 @@ const Layout = () => {
 
       {/* Mobile Navigation */}
       <Navigation />
+
+      {/* Sidebar Overlay */}
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
     </div>
   );
 };
