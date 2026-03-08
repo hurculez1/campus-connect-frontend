@@ -66,31 +66,32 @@ const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-dark-950/95 backdrop-blur-xl flex items-center justify-center p-4 lg:p-8"
+      className="fixed inset-0 z-[100] bg-dark-950 flex items-center justify-center"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: 50, scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 50, scale: 0.95 }}
-        className="w-full max-w-5xl bg-dark-900 rounded-[3rem] overflow-hidden shadow-2xl border border-white/5 flex flex-col lg:flex-row max-h-[90vh] lg:h-[700px]"
+        className="w-full h-full max-w-2xl bg-dark-900 overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Photo Header */}
-        <div className="relative h-72 sm:h-96 lg:h-full lg:w-1/2 w-full flex-shrink-0">
+        <div className="relative h-[45vh] flex-shrink-0">
           <img 
             src={user.profile_photo_url} 
             alt={user.first_name} 
             className="w-full h-full object-cover cursor-zoom-in" 
             onClick={() => onAction?.('fullscreen', user.profile_photo_url)}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/60 transition-colors">✕</button>
+          <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent pointer-events-none" />
+          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/70 transition-colors">
+            ✕
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-8 lg:p-12 overflow-y-auto custom-scrollbar flex-1 lg:w-1/2 flex flex-col">
-          <div className="flex-1">
+        <div className="flex-1 overflow-y-auto p-6 pb-24">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-3xl font-black text-white tracking-tighter">{user.first_name}, {age}</h2>
@@ -127,31 +128,34 @@ const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
               </div>
             )}
 
-            <div>
-              <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Interests</h3>
-              <div className="flex flex-wrap gap-2">
-                {(user.interests || []).map(tag => (
-                  <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold">
-                    {tag}
-                  </span>
-                ))}
+            {user.interests && user.interests.length > 0 && (
+              <div>
+                <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Interests</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(Array.isArray(user.interests) ? user.interests : []).map(tag => (
+                    <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="p-6 pt-0">
-          <button 
-            onClick={() => { 
-              onConnect(user.id); 
-              onClose(); 
-            }}
-            className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95 ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}
-          >
-            Connect with {user.first_name} ✨
-          </button>
+        {/* Action Buttons */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent">
+          <div className="flex gap-3">
+            <button 
+              onClick={() => { 
+                onConnect(user.id); 
+                onClose(); 
+              }}
+              className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-2xl transition-all active:scale-95 ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}
+            >
+              ❤️ Match Now
+            </button>
+          </div>
         </div>
       </motion.div>
     </motion.div>
@@ -258,18 +262,12 @@ const ProfileCard = ({ profile, mode, onTap }) => {
   const handleGoToChat = async (e) => {
     e.stopPropagation();
     try {
-      // Try connection first (for unmatched users)
-      const res = await api.post('/chat/connection/start', { targetUserId: profile.id });
-      if (res.data.connectionId) {
-        navigate(`/connection/${res.data.connectionId}`);
+      // Create actual match
+      const res = await api.post('/matches/direct', { targetUserId: profile.id });
+      if (res.data.matchId) {
+        navigate(`/chat/${res.data.matchId}`);
       } else {
-        // Fallback to match
-        const matchRes = await api.post('/matches/direct', { targetUserId: profile.id });
-        if (matchRes.data.matchId) {
-          navigate(`/chat/${matchRes.data.matchId}`);
-        } else {
-          navigate('/matches');
-        }
+        navigate('/matches');
       }
     } catch (err) {
       console.error('Chat start failed from Discover:', err);
@@ -423,10 +421,10 @@ const Discover = () => {
   const handleDirectMatch = async (userId) => {
     if (!userId) return;
     try {
-      // Try connection first (for unmatched users)
-      const res = await api.post('/chat/connection/start', { targetUserId: userId });
-      if (res.data.connectionId) {
-        navigate(`/connection/${res.data.connectionId}`);
+      // Create actual match
+      const res = await api.post('/matches/direct', { targetUserId: userId });
+      if (res.data.matchId) {
+        navigate(`/chat/${res.data.matchId}`);
       } else {
         navigate('/matches');
       }

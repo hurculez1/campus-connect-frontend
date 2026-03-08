@@ -60,6 +60,7 @@ const Chat = () => {
   const [showIcebreakers, setShowIcebreakers] = useState(false);
   const [matchInfo, setMatchInfo] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [showUserInfo, setShowUserInfo] = useState(false);
   const typingTimeoutRef = useRef(null);
 
   const { data: messages, isLoading } = useQuery(
@@ -188,11 +189,11 @@ const Chat = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col" style={{ height: 'calc(100vh - 130px)' }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-dark-950">
 
       {/* ─ Header ─ */}
       <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-        style={{ background: 'rgba(15,13,12,0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        style={{ background: 'rgba(15,13,12,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={() => navigate('/matches')}
           className="text-dark-400 hover:text-white transition-colors p-1">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,9 +201,10 @@ const Chat = () => {
           </svg>
         </button>
 
-        <div className="relative flex-shrink-0 cursor-zoom-in" onClick={() => setFullscreenImage(otherUser?.profile_photo_url)}>
-          <div className="w-10 h-10 rounded-full overflow-hidden"
-            style={{ border: '2px solid rgba(244,63,94,0.4)' }}>
+        <div className="relative flex-shrink-0">
+          <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer"
+            style={{ border: '2px solid rgba(244,63,94,0.4)' }}
+            onClick={() => setFullscreenImage(otherUser?.profile_photo_url)}>
             {otherUser?.profile_photo_url ? (
               <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -216,7 +218,7 @@ const Chat = () => {
           <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-dark-950 bg-green-500" />
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserInfo(true)}>
           <h2 className="font-bold text-white truncate">
             {otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Chat'}
           </h2>
@@ -226,16 +228,9 @@ const Chat = () => {
           </p>
         </div>
 
-        <div className="flex gap-1">
-          <button className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-dark-400 hover:text-white hover:bg-white/10 transition-all">
-            <span className="text-lg leading-none">📞</span>
-            <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">Call</span>
-          </button>
-          <button className="flex flex-col items-center justify-center w-10 h-10 rounded-xl text-dark-400 hover:text-white hover:bg-white/10 transition-all">
-            <span className="text-lg leading-none">⚙️</span>
-            <span className="text-[7px] font-black uppercase tracking-tighter mt-0.5">Settings</span>
-          </button>
-        </div>
+        <button onClick={() => setShowUserInfo(true)} className="flex items-center justify-center w-10 h-10 rounded-xl text-dark-400 hover:text-white hover:bg-white/10 transition-all">
+          <span className="text-lg">ℹ️</span>
+        </button>
       </div>
 
       {/* ─ Messages ─ */}
@@ -429,6 +424,30 @@ const Chat = () => {
         </form>
       </div>
       
+      {/* User Info Modal */}
+      {showUserInfo && otherUser && (
+        <div className="fixed inset-0 z-[60] bg-dark-950/95 flex items-center justify-center p-4" onClick={() => setShowUserInfo(false)}>
+          <div className="w-full max-w-md bg-dark-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
+            <div className="relative h-48">
+              <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent" />
+              <button onClick={() => setShowUserInfo(false)} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white">✕</button>
+            </div>
+            <div className="p-6">
+              <h2 className="text-2xl font-black text-white">{otherUser.first_name} {otherUser.last_name}</h2>
+              <p className="text-brand-400 text-sm font-bold mt-1">{otherUser.university}</p>
+              {otherUser.course && <p className="text-dark-400 text-sm mt-2">🎓 {otherUser.course}</p>}
+              {otherUser.year_of_study && <p className="text-dark-400 text-sm">📅 Year {otherUser.year_of_study}</p>}
+              {otherUser.verification_status === 'verified' && <div className="badge-verified mt-3">✓ Verified</div>}
+              
+              <button onClick={() => { setShowUserInfo(false); navigate(`/chat/${matchId}`); }} className="w-full mt-6 py-3 bg-brand-500 rounded-xl font-black text-white flex items-center justify-center gap-2">
+                💬 Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ImageModal 
         src={fullscreenImage} 
         isOpen={!!fullscreenImage} 
