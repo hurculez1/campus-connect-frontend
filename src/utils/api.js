@@ -1,16 +1,19 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+// Default backend URL - update this if backend URL changes
+const DEFAULT_BACKEND = 'https://backend-iota-azure-90.vercel.app';
+
 const getApiUrl = () => {
-  // Check localStorage first (set by app)
+  // Check environment variable first
+  if (import.meta.env.VITE_API_URL) return `${import.meta.env.VITE_API_URL}/api`;
+  
+  // Check localStorage (set by app)
   const stored = localStorage.getItem('apiBase');
   if (stored) return `${stored}/api`;
   
-  // Check environment variable
-  if (import.meta.env.VITE_API_URL) return `${import.meta.env.VITE_API_URL}/api`;
-  
-  // Default to current origin (works for Vercel deployments)
-  return `${window.location.origin}/api`;
+  // Default to known backend
+  return `${DEFAULT_BACKEND}/api`;
 };
 
 const api = axios.create({
