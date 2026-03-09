@@ -1,5 +1,5 @@
 {
-  "name": "campus-connect",
+  "name": "frontend",
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "CI=false npm run build",
   "rewrites": [
