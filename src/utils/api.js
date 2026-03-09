@@ -2,7 +2,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 
 // Default backend URL - update this if backend URL changes
-const DEFAULT_BACKEND = 'https://backend-iota-azure-90.vercel.app';
+const DEFAULT_BACKEND = 'https://backend-hurculez1s-projects.vercel.app';
 
 const getApiUrl = () => {
   // Check environment variable first
