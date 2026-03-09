@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../stores/authStore';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const tierBadge = (tier) => {
@@ -121,7 +122,7 @@ const StatCard = ({ title, value, sub, icon, color, index }) => (
 const DashboardHome = () => {
   const { data: stats, isLoading } = useQuery('adminStats',
     () => api.get('/admin/dashboard').then(r => r.data),
-    { refetchInterval: 30000 }
+    { refetchInterval: 5000 } // Refresh every 5 seconds for real-time updates
   );
 
   const cards = [
@@ -701,6 +702,63 @@ const System = () => {
 /* ─── Admin Shell ────────────────────────────────────────────────────────── */
 const AdminDashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Real-time WebSocket connection
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let socketUrl = window.location.origin;
+    const apiBase = localStorage.getItem('apiBase');
+    if (apiBase) {
+      socketUrl = apiBase.replace('/api', '');
+    }
+
+    const socket = io(socketUrl, {
+      auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+      console.log('Admin socket connected');
+    });
+
+    // Real-time events - invalidate queries to refresh data
+    socket.on('new_user', () => {
+      queryClient.invalidateQueries('adminStats');
+      queryClient.invalidateQueries('adminUsers');
+      toast.success('New user registered!', { icon: '👤' });
+    });
+
+    socket.on('new_verification', () => {
+      queryClient.invalidateQueries('adminVerifications');
+      queryClient.invalidateQueries('adminStats');
+      toast.success('New verification pending!', { icon: '✅' });
+    });
+
+    socket.on('new_report', () => {
+      queryClient.invalidateQueries('adminReports');
+      toast.error('New report received!', { icon: '⚠️' });
+    });
+
+    socket.on('new_match', () => {
+      queryClient.invalidateQueries('adminStats');
+    });
+
+    socket.on('new_pulse_post', () => {
+      queryClient.invalidateQueries('adminPulse');
+      queryClient.invalidateQueries('adminStats');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
+
   return (
     <div className="min-h-screen flex" style={{ background: '#0a0908', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />

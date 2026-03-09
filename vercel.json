@@ -2,6 +2,9 @@
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "CI=false react-scripts build",
   "rewrites": [
+    { "source": "/admin-login", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/admin/*", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

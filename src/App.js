@@ -16,6 +16,7 @@ import Settings from './pages/Settings';
 import Subscription from './pages/Subscription';
 import Verification from './pages/Verification';
 import Pulse from './pages/Pulse';
+import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 
 function App() {
@@ -90,8 +91,12 @@ function App() {
 
       {/* Admin Routes */}
       <Route
+        path="/admin-login"
+        element={<AdminLogin />}
+      />
+      <Route
         path="/admin/*"
-        element={(user?.isAdmin || user?.isSuperAdmin) ? <AdminDashboard /> : <Navigate to="/login" />}
+        element={(user?.isAdmin || user?.isSuperAdmin) ? <AdminDashboard /> : <Navigate to="/admin-login" />}
       />
     </Routes>
   );
