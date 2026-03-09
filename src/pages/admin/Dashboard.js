@@ -133,6 +133,7 @@ const StatCard = ({ title, value, sub, icon, color, index }) => (
 
 /* ─── Dashboard Home ─────────────────────────────────────────────────────── */
 const DashboardHome = () => {
+  const qc = useQueryClient();
   const { data: stats, isLoading } = useQuery('adminStats',
     () => api.get('/admin/dashboard').then(r => r.data),
     { refetchInterval: 5000 } // Refresh every 5 seconds for real-time updates
