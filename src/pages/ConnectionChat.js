@@ -77,12 +77,41 @@ const ConnectionChat = () => {
   const sendMessageMutation = useMutation(
     (content) => api.post(`/chat/connection/${connectionId}/messages`, { content }),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['connectionMessages', connectionId]);
+      onMutate: (content) => {
+        const newMessage = {
+          id: 'temp-' + Date.now(),
+          content,
+          sender_id: user?.id,
+          created_at: new Date().toISOString(),
+          is_read: false,
+        };
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+          if (!old || !old.messages) return { messages: [newMessage] };
+          return { ...old, messages: [...old.messages, newMessage] };
+        });
+        return { newMessage };
+      },
+      onSuccess: (data, variables, context) => {
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+          if (!old || !old.messages) return old;
+          return {
+            ...old,
+            messages: old.messages.map(m => m.id === context?.newMessage?.id ? data.message : m)
+          };
+        });
         setMessage('');
         setShowEmojis(false);
         setShowIcebreakers(false);
       },
+      onError: (error, variables, context) => {
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+          if (!old || !old.messages) return old;
+          return {
+            ...old,
+            messages: old.messages.filter(m => !m.id?.startsWith('temp-'))
+          };
+        });
+      }
     }
   );
 
@@ -94,10 +123,19 @@ const ConnectionChat = () => {
       reconnectionAttempts: 5,
     });
     newSocket.on('connect', () => {
+      console.log('Socket connected');
       newSocket.emit('join_connection', connectionId);
     });
-    newSocket.on('new_connection_message', () => {
-      queryClient.invalidateQueries(['connectionMessages', connectionId]);
+    newSocket.on('new_connection_message', (data) => {
+      console.log('Real-time connection message:', data);
+      queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+        if (!old || !old.messages) return old;
+        if (old.messages.some(m => m.id === data.message?.id)) return old;
+        return {
+          ...old,
+          messages: [...old.messages, data.message]
+        };
+      });
     });
     newSocket.on('typing', ({ userId, typing }) => {
       if (userId !== user?.id) setOtherTyping(typing);
@@ -105,7 +143,7 @@ const ConnectionChat = () => {
     setSocket(newSocket);
     return () => {
       newSocket.emit('leave_connection', connectionId);
-      newSocket.close();
+      newSocket.disconnect();
     };
   }, [connectionId, queryClient, user?.id]);
 

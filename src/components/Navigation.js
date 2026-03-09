@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 import api from '../utils/api';
+import { io } from 'socket.io-client';
 
 const navItems = [
   {
@@ -64,11 +65,70 @@ const navItems = [
 
 const Navigation = () => {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const [socket, setSocket] = useState(null);
+  
   const { data: notifications, error } = useQuery(
     'notifications',
     () => api.get('/users/notification-count').then(res => res.data),
-    { refetchInterval: 10000, retry: 2 }
+    { staleTime: 30000, retry: 2 }
   );
+
+  // Set up WebSocket for real-time notifications
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    // Get the current API base URL and convert to socket URL
+    let socketUrl = window.location.origin;
+    const apiBase = localStorage.getItem('apiBase');
+    if (apiBase) {
+      socketUrl = apiBase.replace('/api', '');
+    }
+    
+    const newSocket = io(socketUrl, {
+      auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      transports: ['websocket', 'polling'],
+    });
+    
+    newSocket.on('connect', () => {
+      console.log('Navigation socket connected:', newSocket.id);
+    });
+    
+    // Listen for new message notifications
+    newSocket.on('new_message', (data) => {
+      console.log('Navigation received new_message:', data);
+      // Invalidate notifications query to refetch
+      queryClient.invalidateQueries('notifications');
+    });
+    
+    // Listen for new match notifications
+    newSocket.on('new_match', (data) => {
+      console.log('Navigation received new_match:', data);
+      queryClient.invalidateQueries('notifications');
+    });
+    
+    // Listen for new like notifications
+    newSocket.on('new_like', (data) => {
+      console.log('Navigation received new_like:', data);
+      queryClient.invalidateQueries('notifications');
+    });
+    
+    // Listen for unread count updates
+    newSocket.on('unread_update', (data) => {
+      console.log('Navigation received unread_update:', data);
+      queryClient.invalidateQueries('notifications');
+    });
+    
+    setSocket(newSocket);
+    
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [queryClient]);
 
   // Debug log
   console.log('Notifications:', notifications, 'Error:', error);

@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation } from 'react-query';
 import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 // ─── Post Card ──────────────────────────────────────────────────────────────
-const PostCard = ({ post, mode, onLike, onMessage, onMatch }) => {
+const PostCard = ({ post, mode, onLike, onMessage, onMatch, onMatchNow }) => {
     const isDating = mode === 'dating';
     const isAnonymous = post.is_anonymous;
 
@@ -84,7 +85,7 @@ const PostCard = ({ post, mode, onLike, onMessage, onMatch }) => {
                         <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">Vibe Check</span>
                     </button>
 
-                    <button onClick={() => onMatch(post.user_id)} className="flex items-center gap-2.5 group/btn">
+                    <button onClick={() => onMatchNow(post.user_id, post.first_name)} className="flex items-center gap-2.5 group/btn">
                         <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95`}>
                             <span className="text-base group-hover/btn:scale-125 transition-transform">❤️</span>
                         </div>
@@ -176,7 +177,7 @@ const Pulse = () => {
             const res = await api.post('/matches/direct', { targetUserId: userId });
             if (res.data.matchId) {
                 navigate(`/chat/${res.data.matchId}`, { 
-                    state: { fromNewMatch: true } // Optional: help Chat.js know it's fresh
+                    state: { fromNewMatch: true }
                 });
             } else {
                 navigate('/matches');
@@ -184,6 +185,23 @@ const Pulse = () => {
         } catch (err) {
             console.error('Direct chat failed:', err);
             navigate('/matches');
+        }
+    };
+
+    // Handle Match Now - sends a pending match request
+    const handleMatchNow = async (userId, userName) => {
+        if (!userId) {
+            toast.error('Cannot match with this user');
+            return;
+        }
+        try {
+            const res = await api.post('/matches/request', { targetUserId: userId });
+            if (res.data.success) {
+                toast.success(`Match request sent to ${userName || 'user'}!`);
+            }
+        } catch (err) {
+            const message = err.response?.data?.message || 'Failed to send match request';
+            toast.error(message);
         }
     };
 
@@ -214,9 +232,9 @@ const Pulse = () => {
 
                         <button
                             onClick={() => setIsCreateOpen(true)}
-                            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-xl ${isDating ? 'bg-brand-500 shadow-brand-500/20' : 'bg-indigo-500 shadow-indigo-500/20'} hover:scale-110 active:scale-95`}
+                            className={`fixed bottom-32 right-6 w-16 h-16 rounded-full flex items-center justify-center text-white text-3xl shadow-[0_8px_30px_rgba(244,63,94,0.6)] z-[110] transition-all hover:scale-110 active:scale-90 ${isDating ? 'bg-brand-500' : 'bg-indigo-500'}`}
                         >
-                            <span className="text-xl text-white">✨</span>
+                            ✍️
                         </button>
                     </div>
 
@@ -247,7 +265,7 @@ const Pulse = () => {
                 ) : (
                     <AnimatePresence>
                         {data?.map(post => (
-                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onMessage={handleGoToChat} onMatch={handleGoToChat} />
+                            <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onMessage={handleGoToChat} onMatch={handleGoToChat} onMatchNow={handleMatchNow} />
                         ))}
                     </AnimatePresence>
                 )}
@@ -327,14 +345,6 @@ const Pulse = () => {
                     </div>
                 )}
             </AnimatePresence>
-
-            {/* Floating Create Button for mobile */}
-            <button
-                onClick={() => setIsCreateOpen(true)}
-                className={`fixed bottom-32 right-6 w-16 h-16 rounded-full flex items-center justify-center text-white text-3xl shadow-[0_8px_30px_rgba(244,63,94,0.6)] z-[110] transition-all hover:scale-110 active:scale-90 ${isDating ? 'bg-brand-500' : 'bg-indigo-500'}`}
-            >
-                ✍️
-            </button>
         </div>
     );
 };

@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from 'react-query';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
+import { io } from 'socket.io-client';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 const formatMessageTime = (dateStr, unread) => {
   if (!dateStr) return '';
@@ -30,29 +32,122 @@ const Matches = () => {
   const [activeTab, setActiveTab] = useState('chats');
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // Real-time socket connection
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let socketUrl = window.location.origin;
+    const apiBase = localStorage.getItem('apiBase');
+    if (apiBase) {
+      socketUrl = apiBase.replace('/api', '');
+    }
+
+    const socket = io(socketUrl, {
+      auth: { token },
+      reconnection: true,
+      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+      console.log('Matches socket connected');
+    });
+
+    // Listen for new messages to update unread counts
+    socket.on('new_message', () => {
+      queryClient.invalidateQueries('matches');
+      queryClient.invalidateQueries('notifications');
+    });
+
+    // Listen for new matches
+    socket.on('new_match', () => {
+      queryClient.invalidateQueries('matches');
+      queryClient.invalidateQueries('notifications');
+    });
+
+    // Listen for new likes
+    socket.on('new_like', () => {
+      queryClient.invalidateQueries('likes');
+      queryClient.invalidateQueries('notifications');
+    });
+
+    // Listen for match requests
+    socket.on('match_request', () => {
+      queryClient.invalidateQueries('match-requests');
+      queryClient.invalidateQueries('notifications');
+    });
+
+    // Listen for match accepted
+    socket.on('match_accepted', () => {
+      queryClient.invalidateQueries('matches');
+      queryClient.invalidateQueries('match-requests');
+      queryClient.invalidateQueries('notifications');
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
 
   const { data: matchesData, isLoading: matchesLoading } = useQuery(
     'matches',
     () => api.get('/matches').then(res => res.data),
-    { staleTime: 30000, retry: false }
+    { staleTime: 10000, retry: false }
   );
 
   const { data: connectionsData, isLoading: connectionsLoading } = useQuery(
     'connections',
     () => api.get('/chat/connections').then(res => res.data),
-    { staleTime: 30000, retry: false }
+    { staleTime: 10000, retry: false }
   );
 
   const { data: likesData, isLoading: likesLoading } = useQuery(
     'likes',
     () => api.get('/matches/likes').then(res => res.data),
-    { staleTime: 30000, retry: false }
+    { staleTime: 10000, retry: false }
+  );
+
+  // Get pending match requests
+  const { data: requestsData, isLoading: requestsLoading, refetch: refetchRequests } = useQuery(
+    'match-requests',
+    () => api.get('/matches/requests').then(res => res.data),
+    { staleTime: 10000, retry: false }
+  );
+
+  // Accept match request mutation
+  const acceptMatchMutation = useMutation(
+    (requestId) => api.post('/matches/accept', { requestId }),
+    {
+      onSuccess: (data) => {
+        refetchRequests();
+        queryClient.invalidateQueries('matches');
+        if (data.data.matchId) {
+          navigate(`/chat/${data.data.matchId}`);
+        }
+      }
+    }
+  );
+
+  // Reject match request mutation
+  const rejectMatchMutation = useMutation(
+    (requestId) => api.post('/matches/reject', { requestId }),
+    {
+      onSuccess: () => {
+        refetchRequests();
+      }
+    }
   );
 
   const allMatches = matchesData?.matches || [];
   const allConnections = connectionsData?.connections || [];
   const likes = likesData?.users || [];
   const newLikesCount = likesData?.newCount || 0;
+  const pendingRequests = requestsData?.received || [];
+  const pendingSent = requestsData?.sent || [];
   
   // Mark likes as seen when visiting the tab
   React.useEffect(() => {
@@ -67,7 +162,8 @@ const Matches = () => {
   
   // Combine matches and connections for total unread
   const unreadCount = allMatches.reduce((acc, m) => acc + (m.unread_count || 0), 0) + 
-                      allConnections.reduce((acc, c) => acc + (c.unread_count || 0), 0);
+                      allConnections.reduce((acc, c) => acc + (c.unread_count || 0), 0) +
+                      pendingRequests.length;
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
@@ -88,14 +184,14 @@ const Matches = () => {
       {/* Tabs */}
       <div className="flex gap-2 mb-8 p-1.5 rounded-2xl bg-white/5 border border-white/5">
         {[
-          { id: 'chats', label: 'Chats', icon: '💬', count: chats.length + allConnections.length },
-          { id: 'matches', label: 'Matches', icon: '❤️', count: newMatches.length },
-          { id: 'likes', label: 'Liked You', icon: '⭐', count: newLikesCount },
+          { id: 'chats', label: 'Chats', icon: '💬', count: chats.length + allConnections.length + pendingRequests.length, unread: unreadCount },
+          { id: 'matches', label: 'Matches', icon: '❤️', count: newMatches.length, unread: newMatches.length },
+          { id: 'likes', label: 'Liked You', icon: '⭐', count: newLikesCount, unread: newLikesCount },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`relative flex-1 py-3 px-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-1.5 ${
                activeTab === tab.id 
                ? 'bg-gradient-to-r from-brand-500 to-orange-500 text-white shadow-lg shadow-brand-500/20 scale-[1.02]' 
                : 'text-dark-400 hover:text-white hover:bg-white/5'
@@ -103,9 +199,9 @@ const Matches = () => {
           >
             <span className="text-base">{tab.icon}</span> 
             <span className="inline">{tab.label}</span>
-            {tab.count > 0 && (
+            {tab.unread > 0 && (
               <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[9px] font-black text-white shadow-lg shadow-brand-500/40 ring-2 ring-dark-950">
-                {tab.count}
+                {tab.unread > 9 ? '9+' : tab.unread}
               </span>
             )}
           </button>
@@ -132,6 +228,54 @@ const Matches = () => {
                         <Link to={`/chat/${match.match_id}`} className="text-[10px] font-bold text-white tracking-tight">{match.first_name}</Link>
                      </div>
                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Match Requests */}
+            {pendingRequests.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-black text-brand-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                  <span>⏳</span> Pending Requests
+                </h3>
+                <div className="space-y-2">
+                  {pendingRequests.map((req) => (
+                    <motion.div
+                      key={req.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-2xl border border-brand-500/30 bg-brand-500/5"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div 
+                          onClick={() => setFullscreenImage(req.profile_photo_url)}
+                          className="w-12 h-12 rounded-xl overflow-hidden cursor-zoom-in ring-2 ring-brand-500/30"
+                        >
+                          <img src={req.profile_photo_url || `https://ui-avatars.com/api/?name=${req.first_name}&background=random`} alt="" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-white">{req.first_name} {req.last_name || ''}</h4>
+                          <p className="text-xs text-dark-400">{req.university}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => acceptMatchMutation.mutate(req.id)}
+                          disabled={acceptMatchMutation.isLoading}
+                          className="flex-1 py-2 px-4 rounded-xl bg-brand-500 text-white text-xs font-bold hover:bg-brand-400 transition-colors"
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          onClick={() => rejectMatchMutation.mutate(req.id)}
+                          disabled={rejectMatchMutation.isLoading}
+                          className="flex-1 py-2 px-4 rounded-xl bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors"
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             )}

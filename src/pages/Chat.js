@@ -8,6 +8,7 @@ import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
 import { DEMO_MESSAGES, DEMO_MATCHES, isDemoMode } from '../utils/demoData';
+import toast from 'react-hot-toast';
 
 const ICEBREAKERS = [
   '☕ Coffee or tea while studying?',
@@ -121,34 +122,84 @@ const Chat = () => {
   const sendMessageMutation = useMutation(
     (content) => api.post(`/chat/${matchId}/messages`, { content }),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries(['messages', matchId]);
+      onMutate: (content) => {
+        // Optimistically add message to UI
+        const newMessage = {
+          id: 'temp-' + Date.now(),
+          content,
+          sender_id: user?.id,
+          created_at: new Date().toISOString(),
+          is_read: false,
+        };
+        queryClient.setQueryData(['messages', matchId], (old) => {
+          if (!old) return [newMessage];
+          return [...old, newMessage];
+        });
+        return { newMessage };
+      },
+      onSuccess: (data, variables, context) => {
+        // Update with real message from server
+        queryClient.setQueryData(['messages', matchId], (old) => {
+          if (!old) return [data.message];
+          return old.map(m => m.id === context.newMessage?.id ? data.message : m);
+        });
         setMessage('');
         setShowEmojis(false);
         setShowIcebreakers(false);
       },
+      onError: (error, variables, context) => {
+        // Remove optimistic message on error
+        queryClient.setQueryData(['messages', matchId], (old) => {
+          if (!old) return [];
+          return old.filter(m => !m.id?.startsWith('temp-'));
+        });
+        toast.error('Failed to send message');
+      }
     }
   );
 
   useEffect(() => {
-    if (isDemoMode()) return; // no socket in demo mode
+    if (isDemoMode()) return;
+    
     const token = localStorage.getItem('token');
-    // Use the same host as the API but with socket protocol
-    const socketUrl = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : window.location.origin;
+    // Get the current API base URL and convert to socket URL
+    let socketUrl = window.location.origin;
+    if (api.defaults.baseURL) {
+      // Remove /api from the end to get the base URL
+      socketUrl = api.defaults.baseURL.replace('/api', '');
+    }
+    
     const newSocket = io(socketUrl, {
       auth: { token },
-      reconnectionAttempts: 5,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       transports: ['websocket', 'polling'],
     });
     
     newSocket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('Socket connected:', newSocket.id);
       newSocket.emit('join_match', matchId);
     });
     
+    newSocket.on('disconnect', () => {
+      console.log('Socket disconnected');
+    });
+    
+    newSocket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+    
     newSocket.on('new_message', (data) => {
-      console.log('New message received:', data);
-      queryClient.invalidateQueries(['messages', matchId]);
+      console.log('Real-time message received:', data);
+      // Directly add the new message to the cache instead of refetching
+      queryClient.setQueryData(['messages', matchId], (old) => {
+        if (!old) return [data.message];
+        // Avoid duplicates
+        if (old.some(m => m.id === data.message.id)) return old;
+        return [...old, data.message];
+      });
     });
     
     newSocket.on('typing', ({ userId, typing }) => {
@@ -220,13 +271,13 @@ const Chat = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-dark-950">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0a0a0a' }}>
 
-      {/* ─ Header ─ */}
-      <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-        style={{ background: 'rgba(15,13,12,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* ─ Header ─ WhatsApp style */}
+      <div className="flex items-center gap-2 px-2 py-2 flex-shrink-0"
+        style={{ background: '#1a1a1a', borderBottom: '1px solid #2a2a2a' }}>
         <button onClick={() => navigate('/matches')}
-          className="text-dark-400 hover:text-white transition-colors p-1">
+          className="text-gray-300 hover:text-white transition-colors p-2">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -250,27 +301,28 @@ const Chat = () => {
         </div>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserInfo(true)}>
-          <h2 className="font-bold text-white truncate">
+          <h2 className="font-bold text-white text-base">
             {otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Chat'}
           </h2>
-          <p className="text-xs text-dark-400 truncate">
-            {otherUser?.university || 'Online'}
-            {otherUser?.verification_status === 'verified' && ' · ✓ Verified'}
+          <p className="text-xs text-green-400">
+            {otherTyping ? 'typing...' : (otherUser?.university || 'Online')}
+            {otherUser?.verification_status === 'verified' && ' · ✓'}
           </p>
         </div>
       </div>
 
-      {/* ─ Messages ─ */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
-        style={{ background: 'rgba(15,13,12,0.6)' }}>
+      {/* ─ Messages ─ WhatsApp style */}
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1"
+        style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%)' }}>
 
         {messages?.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div className="text-6xl mb-4">👋</div>
             <h3 className="text-white font-bold text-lg mb-2">You matched! Say hello</h3>
-            <p className="text-dark-400 text-sm mb-6">Break the ice with a message or try one of our prompts</p>
+            <p className="text-gray-400 text-sm mb-6">Break the ice with a message or try one of our prompts</p>
             <button onClick={() => setShowIcebreakers(true)}
-              className="btn-brand px-6 py-3 text-sm">
+              className="px-6 py-3 text-sm rounded-full font-medium"
+              style={{ background: '#00a884', color: 'white' }}>
               🧊 Send an Icebreaker
             </button>
           </div>
@@ -280,9 +332,9 @@ const Chat = () => {
           if (item.type === 'date') {
             return (
               <div key={i} className="flex items-center gap-3 py-2">
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                <span className="text-dark-600 text-xs font-medium">{item.label}</span>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <div className="flex-1 h-px" style={{ background: '#2a2a2a' }} />
+                <span className="text-gray-500 text-xs font-medium px-2 py-1 rounded-full" style={{ background: '#1a1a1a' }}>{item.label}</span>
+                <div className="flex-1 h-px" style={{ background: '#2a2a2a' }} />
               </div>
             );
           }
@@ -299,18 +351,22 @@ const Chat = () => {
             >
               <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
                 <div 
-                  className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
+                  className={`px-4 py-2.5 rounded-2xl text-sm font-medium max-w-full ${
                     isMe 
-                      ? 'bg-brand-500 text-white rounded-br-md' 
-                      : 'bg-white/10 text-white rounded-bl-md'
+                      ? 'text-white rounded-br-md' 
+                      : 'text-white rounded-bl-md'
                   }`}
+                  style={isMe 
+                    ? { background: '#056162', borderTopRightRadius: '4px' }
+                    : { background: '#2a2a2a', borderTopLeftRadius: '4px' }
+                  }
                 >
                   {msg.content}
                 </div>
-                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-500' : 'text-dark-500'}`}>
+                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-gray-500' : 'text-gray-500'}`}>
                   <span>{formatMsgTime(msg.created_at)}</span>
                   {isMe && (
-                    <span className={msg.is_read ? 'text-brand-400' : 'text-dark-500'}>
+                    <span className={msg.is_read ? 'text-green-400' : 'text-gray-500'}>
                       {msg.is_read ? '✓✓' : '✓'}
                     </span>
                   )}
@@ -343,23 +399,23 @@ const Chat = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* ─ Icebreakers ─ */}
+      {/* ─ Icebreakers ─ WhatsApp style */}
       <AnimatePresence>
         {showIcebreakers && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 px-4 py-3 overflow-hidden"
-            style={{ background: 'rgba(15,13,12,0.9)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+            className="flex-shrink-0 px-3 py-2 overflow-hidden"
+            style={{ background: '#1a1a1a', borderTop: '1px solid #2a2a2a' }}
           >
             <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               {ICEBREAKERS.map((prompt, i) => (
                 <button
                   key={i}
                   onClick={() => sendIcebreaker(prompt)}
-                  className="flex-shrink-0 text-xs text-dark-200 px-3 py-2 rounded-xl hover:text-white transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  className="flex-shrink-0 text-xs text-gray-300 px-3 py-2 rounded-xl hover:text-white transition-all"
+                  style={{ background: '#2a2a2a', border: '1px solid #3a3a3a' }}
                 >
                   {prompt}
                 </button>
@@ -369,7 +425,7 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* ─ Emoji picker ─ */}
+      {/* ─ Emoji picker ─ WhatsApp style */}
       <AnimatePresence>
         {showEmojis && (
           <motion.div
@@ -377,7 +433,7 @@ const Chat = () => {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             className="flex-shrink-0 px-4 py-3"
-            style={{ background: 'rgba(15,13,12,0.9)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ background: '#1a1a1a', borderTop: '1px solid #2a2a2a' }}
           >
             <div className="flex flex-wrap gap-2">
               {EMOJIS.map((emoji, i) => (
@@ -394,9 +450,9 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
-      {/* ─ Input Area ─ */}
-      <div className="flex-shrink-0 px-4 py-3"
-        style={{ background: 'rgba(15,13,12,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      {/* ─ Input Area ─ WhatsApp style */}
+      <div className="flex-shrink-0 px-3 py-2"
+        style={{ background: '#1a1a1a', borderTop: '1px solid #2a2a2a' }}>
         <form onSubmit={handleSend} className="flex items-end gap-2">
           {/* Toolbar buttons */}
           <div className="flex gap-1 mb-0.5">
@@ -410,7 +466,8 @@ const Chat = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-white/5 text-dark-400 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm text-gray-400 hover:text-white transition-colors"
+              style={{ background: 'transparent' }}
               title="Send Image"
             >
               📷
@@ -418,9 +475,10 @@ const Chat = () => {
             <button
               type="button"
               onClick={() => { setShowIcebreakers(s => !s); setShowEmojis(false); }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all
-                ${showIcebreakers ? 'text-brand-400' : 'text-dark-400 hover:text-white'}`}
-              style={showIcebreakers ? { background: 'rgba(244,63,94,0.15)' } : { background: 'rgba(255,255,255,0.06)' }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all ${
+                showIcebreakers ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={showIcebreakers ? { background: '#056162' } : { background: 'transparent' }}
               title="Icebreakers"
             >
               🧊
@@ -428,9 +486,10 @@ const Chat = () => {
             <button
               type="button"
               onClick={() => { setShowEmojis(s => !s); setShowIcebreakers(false); }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all
-                ${showEmojis ? 'text-brand-400' : 'text-dark-400 hover:text-white'}`}
-              style={showEmojis ? { background: 'rgba(244,63,94,0.15)' } : { background: 'rgba(255,255,255,0.06)' }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all ${
+                showEmojis ? 'text-white' : 'text-gray-400 hover:text-white'
+              }`}
+              style={showEmojis ? { background: '#056162' } : { background: 'transparent' }}
               title="Emojis"
             >
               😊
@@ -446,11 +505,10 @@ const Chat = () => {
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               rows={1}
-              className="w-full px-4 py-2.5 rounded-2xl resize-none font-medium text-dark-50 placeholder:text-dark-500 text-sm
-                         focus:outline-none transition-all duration-200"
+              className="w-full px-4 py-2 rounded-2xl resize-none font-medium text-white placeholder:text-gray-500 text-sm focus:outline-none transition-all duration-200"
               style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: '#2a2a2a',
+                border: '1px solid #3a3a3a',
                 maxHeight: 120,
               }}
             />
@@ -461,9 +519,9 @@ const Chat = () => {
             type="submit"
             disabled={!message.trim() || sendMessageMutation.isLoading}
             className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                       transition-all duration-200 hover:scale-110 active:scale-90
+                       transition-all duration-200 hover:scale-105 active:scale-95
                        disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
-            style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)', boxShadow: '0 4px 20px rgba(244,63,94,0.4)' }}
+            style={{ background: message.trim() ? '#00a884' : '#2a2a2a' }}
           >
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
