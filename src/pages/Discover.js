@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
@@ -147,14 +147,19 @@ const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
         {/* Action Buttons */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent">
           <div className="flex gap-3">
-            <button 
-              onClick={() => { 
-                onConnect(user.id); 
-                onClose(); 
+            <button
+              onClick={async () => {
+                try {
+                  const res = await api.post('/chat/connection/start', { targetUserId: user.id });
+                  if (res.data.connectionId) {
+                    onClose();
+                    onAction?.('navigate', `/connection/${res.data.connectionId}`);
+                  }
+                } catch { onConnect(user.id); onClose(); }
               }}
               className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-2xl transition-all active:scale-95 ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}
             >
-              ❤️ Match Now
+              💬 Send Message
             </button>
           </div>
         </div>
@@ -263,16 +268,15 @@ const ProfileCard = ({ profile, mode, onTap }) => {
   const handleGoToChat = async (e) => {
     e.stopPropagation();
     try {
-      // Create actual match
-      const res = await api.post('/matches/direct', { targetUserId: profile.id });
-      if (res.data.matchId) {
-        navigate(`/chat/${res.data.matchId}`);
+      const res = await api.post('/chat/connection/start', { targetUserId: profile.id });
+      if (res.data.connectionId) {
+        navigate(`/connection/${res.data.connectionId}`);
       } else {
-        navigate('/matches');
+        toast.error('Could not open chat');
       }
     } catch (err) {
-      console.error('Chat start failed from Discover:', err);
-      navigate('/matches');
+      console.error('Chat from Discover failed:', err);
+      toast.error('Could not open chat. Try again.');
     }
   };
 
@@ -395,6 +399,7 @@ const Discover = () => {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [lastDirection, setLastDirection] = useState(null);
   const [history, setHistory] = useState([]); // Track swipe history
+  const typingTimeoutRef = useRef(null);
 
   const isDating = mode === 'dating';
 
@@ -415,42 +420,9 @@ const Discover = () => {
     }
   );
 
-  const directMatchMutation = useMutation(
-    (targetUserId) => api.post('/matches/direct', { targetUserId }),
-    {
-      onSuccess: (res) => {
-        console.log('Direct match response:', res.data);
-        if (res.data.matchId) {
-          // Show match celebration
-          const profile = matches[currentIndex];
-          if (profile) {
-            setMatchCelebration({ id: profile.id, firstName: profile.first_name });
-          }
-        }
-      },
-      onError: (err) => {
-        console.error('Direct match error:', err);
-      }
-    }
-  );
-
   const matches = potentialMatches?.matches || [];
   const swipeLimit = potentialMatches?.swipeLimit;
   const currentMatch = matches[currentIndex];
-
-  const handleDirectMatch = async (userId) => {
-    if (!userId) return;
-    try {
-      // Send pending match request instead of instant match
-      const res = await api.post('/matches/request', { targetUserId: userId });
-      if (res.data.success) {
-        toast.success('Match request sent!');
-      }
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to send match request';
-      toast.error(message);
-    }
-  };
 
   const handleBack = () => {
     if (currentIndex > 0 && history.length > 0) {
@@ -467,7 +439,7 @@ const Discover = () => {
     // Add to history BEFORE incrementing index
     setHistory(prev => [...prev, { profile, direction }]);
     
-    swipeMutation.mutate({ targetUserId: profile.id, direction: dir, profile: profile });
+    swipeMutation.mutate({ targetUserId: profile.id, direction: dir });
     setCurrentIndex(prev => prev + 1);
   }, [swipeMutation]);
 
@@ -476,8 +448,20 @@ const Discover = () => {
     onSwipe(dir, currentMatch);
   };
 
+  const handleDirectMatch = async (userId) => {
+    if (!userId) return;
+    try {
+      const res = await api.post('/matches/request', { targetUserId: userId });
+      if (res.data.success) {
+        toast.success('Match request sent!');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send match request');
+    }
+  };
+
   // Keyboard Listeners
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (matchCelebration) return;
       if (e.key === 'ArrowLeft') programmaticSwipe('left');
@@ -533,7 +517,11 @@ const Discover = () => {
             user={selectedProfile} 
             mode={mode} 
             onClose={() => setSelectedProfile(null)} 
-            onConnect={handleDirectMatch}
+            onConnect={() => handleDirectMatch(selectedProfile.id)}
+            onAction={(type, payload) => {
+              if (type === 'navigate') { setSelectedProfile(null); navigate(payload); }
+              if (type === 'fullscreen') { setFullscreenImage(payload); }
+            }}
           />
         )}
       </AnimatePresence>
@@ -547,6 +535,8 @@ const Discover = () => {
           navigate('/matches'); 
         }} 
       />
+
+      {fullscreenImage && <ImageModal imageUrl={fullscreenImage} onClose={() => setFullscreenImage(null)} />}
 
       <div className="max-w-md lg:max-w-2xl mx-auto px-4 relative flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)]">
         {/* Progress bar */}
@@ -566,29 +556,25 @@ const Discover = () => {
         <div className="relative perspective-lg w-full flex-1 min-h-0 max-h-[520px] lg:max-h-[600px]">
           {currentIndex < matches.length && (
             <>
-              {/* Tap-to-swipe Arrows - visible on all screens */}
+              {/* Tap-to-swipe Arrows */}
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
                 className="absolute left-0 sm:left-2 lg:left-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-red-500 transition-all active:scale-75 group"
               >
-                <span className="group-hover:-translate-x-1 transition-transform">✕</span>
+                ✕
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
                 className="absolute right-0 sm:right-2 lg:right-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-green-500 transition-all active:scale-75 group"
               >
-                <span className="group-hover:translate-x-1 transition-transform">❤️</span>
+                ❤️
               </button>
 
               {/* Back Button */}
               {history.length > 0 && (
                 <div className="absolute top-[-40px] right-0 z-50">
-                  <button 
-                    onClick={handleBack}
-                    className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base text-dark-400 hover:bg-white hover:text-black transition-all group active:scale-75"
-                    title="Swipe Back"
-                  >
-                    <span className="group-hover:rotate-[-45deg] transition-transform">↺</span>
+                  <button onClick={handleBack} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base text-dark-400 hover:bg-white hover:text-black transition-all group active:scale-75">
+                    ↺
                   </button>
                 </div>
               )}
@@ -613,45 +599,43 @@ const Discover = () => {
               </motion.div>
             );
           })}
+
+          {/* Tutorial Overlay */}
+          {matches.length > 0 && currentIndex < matches.length && !localStorage.getItem('swipe_tutorial_v2') && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-6 text-center"
+              onClick={() => { localStorage.setItem('swipe_tutorial_v2', 'true'); setCurrentIndex(ci => ci); }}>
+              <div className="space-y-10">
+                <div className="flex justify-center gap-16">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-14 h-14 rounded-full border-2 border-red-500 flex items-center justify-center text-red-500 text-2xl">✕</div>
+                    <span className="text-red-400 text-[10px] font-black tracking-widest uppercase">Swipe Left</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-14 h-14 rounded-full border-2 border-brand-500 flex items-center justify-center text-brand-500 text-2xl">❤️</div>
+                    <span className="text-brand-400 text-[10px] font-black tracking-widest uppercase">Swipe Right</span>
+                  </div>
+                </div>
+                <button className="btn-premium-v2 px-10 py-3 text-[10px]">GOT IT!</button>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* Primary Action Control */}
-        <div className="flex items-center justify-center mt-5 mb-2 group-shrink-0 z-50 relative pointer-events-auto">
-          <button onClick={() => {
-            const profile = matches[currentIndex];
-            if (profile?.id) {
-              // Create direct match
-              directMatchMutation.mutate(profile.id);
-              // Move to next card
-              setTimeout(() => {
-                setLastDirection('right');
-                setHistory(prev => [...prev, { profile, direction: 'right' }]);
-                setCurrentIndex(prev => prev + 1);
-              }, 500);
-            }
-          }}
-            className={`w-full max-w-[260px] py-4 flex items-center justify-center gap-3 text-sm shadow-2xl transition-all hover:scale-105 active:scale-95 font-black uppercase tracking-widest rounded-2xl ${isDating ? 'bg-gradient-to-r from-brand-500 to-rose-500 border-2 border-brand-400' : 'bg-gradient-to-r from-indigo-500 to-purple-500 border-2 border-indigo-400'} text-white`}>
-            <span className="text-lg">❤️</span> Match Now
+        {/* Action Controls */}
+        <div className="flex items-center justify-center gap-6 mt-4 mb-8 z-50 relative">
+          <button onClick={() => programmaticSwipe('left')} className="w-16 h-16 rounded-full flex items-center justify-center bg-dark-800 border-2 border-dark-600 text-red-500 shadow-xl hover:bg-red-500 hover:text-white transition-all duration-300 active:scale-90">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+          <button onClick={() => programmaticSwipe('right')} className={`w-16 h-16 rounded-full flex items-center justify-center bg-dark-800 border-2 ${isDating ? 'border-brand-500 text-brand-500 hover:bg-brand-500' : 'border-indigo-500 text-indigo-500 hover:bg-indigo-500'} shadow-xl hover:text-white transition-all duration-300 active:scale-90`}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
           </button>
         </div>
 
-        {/* Swipe Hint */}
-        <div className="flex items-center justify-center gap-8 py-2 text-dark-500 text-xs font-bold">
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">✕</span>
-            <span>Pass</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">❤️</span>
-            <span>Like</span>
-          </div>
-        </div>
-
-        {/* Direction feedback overlay */}
+        {/* Feedback Overlay */}
         <AnimatePresence>
           {lastDirection && (
             <motion.div key={lastDirection} initial={{ opacity: 1, scale: 0.5 }} animate={{ opacity: 0, scale: 2 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
-              className={`absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl z-50 pointer-events-none drop-shadow-2xl`}>
+              className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl z-50 pointer-events-none drop-shadow-2xl">
               {lastDirection === 'right' ? (isDating ? '❤️' : '📚') : '👋'}
             </motion.div>
           )}
@@ -661,4 +645,4 @@ const Discover = () => {
   );
 };
 
-export default Discover;
+export default Discover;

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 const ICEBREAKERS = [
   '☕ Coffee or tea while studying?',
@@ -34,7 +35,8 @@ const groupMessagesByDate = (msgs) => {
   const groups = [];
   let lastDate = null;
   msgs.forEach(msg => {
-    const d = new Date(msg.created_at);
+    if (!msg?.created_at && !msg?.createdAt) return;
+    const d = new Date(msg.created_at || msg.createdAt);
     const dateStr = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'MMMM d, yyyy');
     if (dateStr !== lastDate) {
       groups.push({ type: 'date', label: dateStr });
@@ -52,6 +54,7 @@ const ConnectionChat = () => {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [message, setMessage] = useState('');
   const [socket, setSocket] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -95,52 +98,134 @@ const ConnectionChat = () => {
       onSuccess: (data, variables, context) => {
         queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
           if (!old || !old.messages) return old;
-          return {
-            ...old,
-            messages: old.messages.map(m => m.id === context?.newMessage?.id ? data.message : m)
-          };
+          const realId = data.data?.messageId || data.data?.message?.id;
+          const exists = old.messages.some((m) => String(m.id) === String(realId));
+          if (exists) {
+            // Socket already added the real message, remove temp
+            return { ...old, messages: old.messages.filter(m => m.id !== context?.newMessage?.id) };
+          } else {
+            // Socket hasn't arrived
+            return {
+              ...old,
+              messages: old.messages.map(m => m.id === context?.newMessage?.id ? { ...m, id: realId, created_at: new Date().toISOString() } : m)
+            };
+          }
         });
         setMessage('');
         setShowEmojis(false);
         setShowIcebreakers(false);
       },
-      onError: (error, variables, context) => {
+      onError: (err, variables, context) => {
         queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
           if (!old || !old.messages) return old;
-          return {
-            ...old,
-            messages: old.messages.filter(m => !m.id?.startsWith('temp-'))
-          };
+          return { ...old, messages: old.messages.filter(m => m.id !== context?.newMessage?.id) };
         });
+        toast.error('Failed to send message');
       }
     }
   );
+
+  const sendImageMutation = useMutation(
+    (formData) => api.post(`/chat/connection/${connectionId}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    {
+      onMutate: (formData) => {
+        const file = formData.get('image');
+        if (file) {
+          const tempUrl = URL.createObjectURL(file);
+          const tempMsg = {
+            id: 'img-temp-' + Date.now(),
+            content: '',
+            message_type: 'image',
+            image_url: tempUrl,
+            sender_id: user?.id,
+            created_at: new Date().toISOString(),
+            is_read: false,
+          };
+          queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+            if (!old || !old.messages) return { messages: [tempMsg] };
+            return { ...old, messages: [...old.messages, tempMsg] };
+          });
+          return { tempId: tempMsg.id, tempUrl };
+        }
+      },
+      onSuccess: (data, vars, context) => {
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+          if (!old || !old.messages) return old;
+          return { ...old, messages: old.messages.map(m =>
+            m.id === context?.tempId
+              ? { ...m, ...data.data?.message, image_url: data.data?.message?.image_url || context.tempUrl }
+              : m
+          )};
+        });
+      },
+      onError: (err, vars, context) => {
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+          if (!old || !old.messages) return old;
+          return { ...old, messages: old.messages.filter(m => m.id !== context?.tempId) };
+        });
+        toast.error('Image upload failed');
+      }
+    }
+  );
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Only images are allowed'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
+    const formData = new FormData();
+    formData.append('image', file);
+    sendImageMutation.mutate(formData);
+    e.target.value = '';
+  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const socketUrl = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : window.location.origin;
     const newSocket = io(socketUrl, {
       auth: { token },
-      reconnectionAttempts: 5,
+      transports: ['websocket', 'polling'],
     });
+    
     newSocket.on('connect', () => {
-      console.log('Socket connected');
       newSocket.emit('join_connection', connectionId);
     });
+    
     newSocket.on('new_connection_message', (data) => {
-      console.log('Real-time connection message:', data);
-      queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
-        if (!old || !old.messages) return old;
-        if (old.messages.some(m => m.id === data.message?.id)) return old;
-        return {
-          ...old,
-          messages: [...old.messages, data.message]
-        };
-      });
+        if (String(data.connectionId) === String(connectionId)) {
+            queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+                const msg = data.message;
+                if (!old) return { messages: [msg] };
+                if (!old.messages) return { ...old, messages: [msg] };
+                if (old.messages.some(m => String(m.id) === String(msg.id))) return old;
+                
+                const deduplicated = old.messages.filter(m => !(m.id.toString().startsWith('temp-') && m.content === msg.content));
+                return { ...old, messages: [...deduplicated, msg] };
+            });
+            // Mark as read immediately
+            if (data.message.sender_id !== user?.id) {
+                newSocket.emit('message_read_connection', { connectionId, messageId: data.message.id });
+                api.post(`/chat/connection/${connectionId}/read`).catch(() => {});
+            }
+        }
     });
-    newSocket.on('typing', ({ userId, typing }) => {
-      if (userId !== user?.id) setOtherTyping(typing);
+
+    newSocket.on('message_read_connection', ({ messageId }) => {
+        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
+            if (!old || !old.messages) return old;
+            return {
+                ...old,
+                messages: old.messages.map(m => String(m.id) === String(messageId) ? { ...m, is_read: 1 } : m)
+            };
+        });
     });
+
+    newSocket.on('typing', ({ userId, isTyping }) => {
+      if (userId !== user?.id) setOtherTyping(isTyping);
+    });
+
     setSocket(newSocket);
     return () => {
       newSocket.emit('leave_connection', connectionId);
@@ -157,7 +242,7 @@ const ConnectionChat = () => {
     const text = message.trim();
     if (!text) return;
     sendMessageMutation.mutate(text);
-    socket?.emit('typing', { connectionId, typing: false });
+    socket?.emit('typing', { connectionId, isTyping: false });
   };
 
   const handleInput = (e) => {
@@ -165,12 +250,12 @@ const ConnectionChat = () => {
     if (!socket) return;
     if (!isTyping) {
       setIsTyping(true);
-      socket.emit('typing', { connectionId, typing: true });
+      socket.emit('typing', { connectionId, isTyping: true });
     }
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket?.emit('typing', { connectionId, typing: false });
+      socket?.emit('typing', { connectionId, isTyping: false });
     }, 1500);
   };
 
@@ -181,14 +266,8 @@ const ConnectionChat = () => {
     }
   };
 
-  const sendIcebreaker = (prompt) => {
-    setMessage(prompt);
-    setShowIcebreakers(false);
-    inputRef.current?.focus();
-  };
-
-  const addEmoji = (emoji) => {
-    setMessage(prev => prev + emoji);
+  const addEmoji = (e) => {
+    setMessage(prev => prev + e);
     inputRef.current?.focus();
   };
 
@@ -197,313 +276,156 @@ const ConnectionChat = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[520px]">
-        <div className="w-10 h-10 rounded-full animate-spin"
-          style={{ border: '3px solid rgba(244,63,94,0.2)', borderTopColor: '#f43f5e' }} />
+      <div className="flex items-center justify-center h-screen bg-[#0b141a]">
+        <div className="w-10 h-10 border-4 border-t-transparent border-indigo-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-dark-950">
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0b141a' }}>
 
-      {/* ─ Header ─ */}
-      <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-        style={{ background: 'rgba(15,13,12,0.95)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => navigate('/discover')}
-          className="text-dark-400 hover:text-white transition-colors p-1">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+      {/* Header */}
+      <div className="flex items-center gap-2 px-2 py-2 flex-shrink-0"
+        style={{ background: '#202c33', borderBottom: '1px solid #2a2a2a' }}>
+        <button onClick={() => navigate('/matches')} className="text-gray-300 p-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth={2} /></svg>
         </button>
 
-        <div className="relative flex-shrink-0">
-          <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer"
-            style={{ border: '2px solid rgba(99,102,241,0.4)' }}
+        <div className="relative flex-shrink-0 shadow-xl">
+          <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer bg-dark-800"
             onClick={() => setFullscreenImage(otherUser?.profile_photo_url)}>
             {otherUser?.profile_photo_url ? (
-              <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
+               <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-xl"
-                style={{ background: 'linear-gradient(135deg, #6366f120, #a855f720)' }}>
-                {otherUser?.gender === 'female' ? '👩🏾' : '👨🏿'}
-              </div>
+               <div className="w-full h-full flex items-center justify-center text-xl">👤</div>
             )}
           </div>
-          <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-dark-950 bg-green-500" />
         </div>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserInfo(true)}>
-          <h2 className="font-bold text-white truncate">
-            {otherUser ? `${otherUser.first_name} ${otherUser.last_name || ''}` : 'Chat'}
-          </h2>
-          <p className="text-xs text-dark-400 truncate">
-            {otherUser?.university || 'Online'}
-            {otherUser?.verification_status === 'verified' && ' · ✓ Verified'}
+          <h2 className="font-bold text-white text-base truncate leading-tight">{otherUser?.first_name || 'Vibe Check'}</h2>
+          <p className={`text-[11px] font-medium tracking-tight ${otherTyping ? 'text-green-400' : 'text-gray-400'}`}>
+            {otherTyping ? 'typing...' : (otherUser?.university || 'Connecting...')}
           </p>
         </div>
       </div>
 
-      {/* ─ Messages ─ */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
-        style={{ background: 'rgba(15,13,12,0.6)' }}>
-
-        {(!chatData?.messages || chatData.messages.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="text-6xl mb-4">👋</div>
-            <h3 className="text-white font-bold text-lg mb-2">Start a conversation!</h3>
-            <p className="text-dark-400 text-sm mb-6">Break the ice with a message or try one of our prompts</p>
-            <button onClick={() => setShowIcebreakers(true)}
-              className="btn-brand px-6 py-3 text-sm">
-              🧊 Send an Icebreaker
-            </button>
-          </div>
-        )}
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative"
+        style={{ 
+          background: '#0b141a',
+          backgroundImage: 'radial-gradient(#202c33 0.5px, transparent 0.5px)',
+          backgroundSize: '20px 20px'
+        }}>
 
         {grouped.map((item, i) => {
-          if (item.type === 'date') {
-            return (
-              <div key={i} className="flex items-center gap-3 py-2">
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                <span className="text-dark-600 text-xs font-medium">{item.label}</span>
-                <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-              </div>
-            );
-          }
+          if (item.type === 'date') return (
+            <div key={i} className="flex items-center gap-3 py-4">
+               <div className="flex-1 h-px bg-white/5" /><span className="text-[10px] text-gray-500 bg-[#202c33] px-3 py-1 rounded-lg uppercase font-black tracking-widest">{item.label}</span><div className="flex-1 h-px bg-white/5" />
+            </div>
+          );
 
           const msg = item.data;
           const isMe = msg.sender_id === user?.id;
 
           return (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}
-            >
-              <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+            <motion.div key={msg.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1`}>
+              <div className={`relative flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
                 <div 
-                  className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
-                    isMe 
-                      ? 'bg-brand-500 text-white rounded-br-md' 
-                      : 'bg-white/10 text-white rounded-bl-md'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-[14px] relative ${isMe ? 'text-white' : 'text-gray-100'} shadow-md`}
+                  style={{ background: isMe ? '#2a3942' : '#202c33', borderTopRightRadius: isMe ? 0 : 12, borderTopLeftRadius: isMe ? 12 : 0 }}
                 >
-                  {msg.content}
-                </div>
-                <div className={`flex items-center gap-1 mt-1 text-[10px] ${isMe ? 'text-dark-500' : 'text-dark-500'}`}>
-                  <span>{formatMsgTime(msg.created_at)}</span>
+                   {msg.message_type === 'image' || msg.image_url ? (
+                    <img src={msg.image_url || msg.imageUrl} alt="" className="max-w-full rounded-lg cursor-zoom-in" onClick={() => setFullscreenImage(msg.image_url || msg.imageUrl)} />
+                  ) : (
+                    <span className="whitespace-pre-wrap break-words leading-relaxed font-medium">{msg.content}</span>
+                  )}
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <span className="text-[9px] text-gray-400 font-bold">{formatMsgTime(msg.created_at || msg.createdAt)}</span>
+                    {isMe && <span className={`text-[10px] ${msg.is_read ? 'text-blue-400' : 'text-gray-500'}`}>{msg.is_read ? '✓✓' : '✓'}</span>}
+                  </div>
                 </div>
               </div>
             </motion.div>
           );
         })}
-
-        <AnimatePresence>
-          {otherTyping && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              className="flex justify-start mb-2"
-            >
-              <div className="msg-bubble-them py-3">
-                <div className="flex items-center gap-1">
-                  <div className="typing-dot" />
-                  <div className="typing-dot" />
-                  <div className="typing-dot" />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-4" />
       </div>
 
-      {/* ─ Icebreakers ─ */}
-      <AnimatePresence>
-        {showIcebreakers && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 px-4 py-3 overflow-hidden"
-            style={{ background: 'rgba(15,13,12,0.9)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {ICEBREAKERS.map((prompt, i) => (
-                <button
-                  key={i}
-                  onClick={() => sendIcebreaker(prompt)}
-                  className="flex-shrink-0 text-xs text-dark-200 px-3 py-2 rounded-xl hover:text-white transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─ Emoji picker ─ */}
-      <AnimatePresence>
-        {showEmojis && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 px-4 py-3"
-            style={{ background: 'rgba(15,13,12,0.9)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <div className="flex flex-wrap gap-2">
-              {EMOJIS.map((emoji, i) => (
-                <button
-                  key={i}
-                  onClick={() => addEmoji(emoji)}
-                  className="text-2xl hover:scale-125 transition-transform"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─ Input Area ─ */}
-      <div className="flex-shrink-0 px-4 py-3"
-        style={{ background: 'rgba(15,13,12,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <form onSubmit={handleSend} className="flex items-end gap-3">
-          <div className="flex gap-1 mb-0.5">
-            <button
-              type="button"
-              onClick={() => { setShowIcebreakers(s => !s); setShowEmojis(false); }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all
-                ${showIcebreakers ? 'text-brand-400' : 'text-dark-400 hover:text-white'}`}
-              style={showIcebreakers ? { background: 'rgba(244,63,94,0.15)' } : { background: 'rgba(255,255,255,0.06)' }}
-              title="Icebreakers"
-            >
-              🧊
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowEmojis(s => !s); setShowIcebreakers(false); }}
-              className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all
-                ${showEmojis ? 'text-brand-400' : 'text-dark-400 hover:text-white'}`}
-              style={showEmojis ? { background: 'rgba(244,63,94,0.15)' } : { background: 'rgba(255,255,255,0.06)' }}
-              title="Emojis"
-            >
-              😊
-            </button>
-          </div>
-
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={message}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              rows={1}
-              className="w-full px-4 py-2.5 rounded-2xl resize-none font-medium text-dark-50 placeholder:text-dark-500 text-sm
-                         focus:outline-none transition-all duration-200"
-              style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                maxHeight: 120,
-              }}
-            />
-          </div>
-
+      {/* Input */}
+      <div className="px-2 py-3 pb-6 flex items-end gap-2 bg-[#111b21] border-t border-white/5">
+        <div className="flex-1 flex items-end gap-2 bg-[#2a3942] rounded-[24px] px-3 py-1.5 min-h-[48px] shadow-inner">
+          <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="p-1 text-xl hover:scale-110 transition-transform">😊</button>
+          <textarea ref={inputRef} value={message} onChange={handleInput} onKeyDown={handleKeyDown} placeholder="Vibe check..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32 text-sm font-medium" />
+          <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
+          {/* Bold prominent image upload button */}
           <button
-            type="submit"
-            disabled={!message.trim() || sendMessageMutation.isLoading}
-            className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                       transition-all duration-200 hover:scale-110 active:scale-90
-                       disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
-            style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)', boxShadow: '0 4px 20px rgba(244,63,94,0.4)' }}
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </form>
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sendImageMutation.isLoading}
+            className="p-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 transition-all text-indigo-400 font-black text-xl border border-indigo-600/30"
+            title="Share Image"
+          >📷</button>
+          <button type="button" onClick={() => setShowIcebreakers(!showIcebreakers)} className="p-1 text-xl hover:scale-110 transition-transform">🧊</button>
+        </div>
+        <button onClick={handleSend} disabled={!message.trim()} className="w-12 h-12 rounded-full flex items-center justify-center bg-indigo-600 text-white shadow-lg active:scale-90 transition-transform disabled:opacity-50">
+             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+        </button>
       </div>
 
-      {/* User Info Modal */}
-      {showUserInfo && otherUser && (
-        <div className="fixed inset-0 z-[60] bg-dark-950 flex items-center justify-center" onClick={() => setShowUserInfo(false)}>
-          <div className="w-full h-full max-w-2xl bg-dark-900 overflow-y-auto" onClick={e => e.stopPropagation()}>
-            {/* Profile Header */}
-            <div className="relative h-[50vh]">
-              <img 
-                src={otherUser.profile_photo_url} 
-                alt="" 
-                className="w-full h-full object-cover cursor-pointer"
-                onClick={() => setFullscreenImage(otherUser.profile_photo_url)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent" />
-              <button onClick={() => setShowUserInfo(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white text-xl">
-                ←
-              </button>
-              <div className="absolute bottom-4 left-4 right-4">
-                <h2 className="text-3xl font-black text-white">{otherUser.first_name} {otherUser.last_name}</h2>
-                <p className="text-indigo-400 text-sm font-bold mt-1">{otherUser.university}</p>
-              </div>
-            </div>
-            
-            {/* Profile Details */}
-            <div className="p-6 space-y-6">
-              {otherUser.verification_status === 'verified' && (
-                <div className="badge-verified">✓ Verified Student</div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Course</p>
-                  <p className="text-white font-bold">{otherUser.course || 'Not specified'}</p>
+       {/* Detailed Profile View */}
+       <AnimatePresence>
+        {showUserInfo && otherUser && (
+          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed inset-0 z-[60] bg-dark-950 flex flex-col overflow-y-auto"
+          >
+             <div className="relative h-[55vh] flex-shrink-0 group overflow-hidden">
+                <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-dark-950/20 to-transparent" />
+                <button onClick={() => setShowUserInfo(false)} className="absolute top-4 left-4 w-11 h-11 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white text-xl shadow-2xl hover:bg-black/70 transition-all">✕</button>
+                <div className="absolute bottom-8 left-8 right-8">
+                   <h2 className="text-4xl font-black text-white tracking-tighter drop-shadow-2xl">{otherUser.first_name}</h2>
+                   <div className="flex items-center gap-2 mt-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                      <p className="text-green-500 font-black uppercase tracking-widest text-xs">{otherUser.university}</p>
+                   </div>
                 </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Year</p>
-                  <p className="text-white font-bold">{otherUser.year_of_study || 'N/A'}</p>
+             </div>
+             <div className="p-8 space-y-8">
+                <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
+                   <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-3 opacity-60">Status Message</p>
+                   <p className="text-white text-base leading-relaxed font-medium italic">"{otherUser.bio || 'Living the student life!'}"</p>
                 </div>
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-white/5 p-5 rounded-[2rem] border border-white/5 flex flex-col items-center text-center">
+                      <p className="text-[9px] text-gray-500 font-black uppercase mb-2 tracking-tighter">Academic Field</p>
+                      <p className="text-white font-black text-sm">{otherUser.course || 'Curious Student'}</p>
+                   </div>
+                   <div className="bg-white/5 p-5 rounded-[2rem] border border-white/5 flex flex-col items-center text-center">
+                      <p className="text-[9px] text-gray-500 font-black uppercase mb-2 tracking-tighter">Campus Base</p>
+                      <p className="text-white font-black text-sm">{otherUser.university?.split(' ')[0] || 'Uganda'}</p>
+                   </div>
+                </div>
+                <button onClick={() => setShowUserInfo(false)} className="w-full py-5 bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-[2rem] font-black text-white shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all text-sm uppercase tracking-widest">Return to Conversation</button>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {otherUser.bio && (
-                <div>
-                  <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">About</h3>
-                  <p className="text-dark-200 text-sm leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5">
-                    {otherUser.bio}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">Interests</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(Array.isArray(otherUser.interests) ? otherUser.interests : []).map(tag => (
-                    <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+      <AnimatePresence>
+         {showEmojis && (
+           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-4 py-4 overflow-y-auto max-h-40 bg-[#111b21] border-t border-white/5">
+              <div className="flex flex-wrap gap-4 justify-center">
+                 {EMOJIS.map((e, i) => (
+                   <button key={i} onClick={() => { setMessage(p => p + e); setShowEmojis(false); }} className="text-2xl hover:scale-125 transition-transform">{e}</button>
+                 ))}
               </div>
+           </motion.div>
+         )}
+      </AnimatePresence>
 
-              <button onClick={() => { setShowUserInfo(false); }} className="w-full py-4 bg-indigo-500 rounded-2xl font-black text-white flex items-center justify-center gap-2">
-                💬 Send Message
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <ImageModal 
-        src={fullscreenImage} 
-        isOpen={!!fullscreenImage} 
-        onClose={() => setFullscreenImage(null)} 
-      />
+      <ImageModal src={fullscreenImage} isOpen={!!fullscreenImage} onClose={() => setFullscreenImage(null)} />
     </div>
   );
 };

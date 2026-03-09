@@ -22,12 +22,9 @@ const AdminLogin = () => {
     try {
       const res = await api.post('/admin/login', { email, password });
       if (res.data.success) {
-        // Store token and user data
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-        
-        // Update auth store
-        await login(email, password);
+        // Update auth store directly with admin data
+        const { user, token } = res.data;
+        useAuthStore.getState().setAdminSession(user, token);
         
         toast.success('Welcome to Admin Panel!');
         navigate('/admin');

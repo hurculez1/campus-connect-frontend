@@ -1,39 +1,64 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuthStore } from '../stores/authStore';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import { format, isToday, isYesterday } from 'date-fns';
+import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
+import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆', '👍', '👎', '💕', '💔', '🥳', '🤔', '😢', '😮', '💪', '🎯', '🌟', '💫', '🎊', '🎁', '🌈', '☀️', '🌙', '⚡', '🎭', '🎨', '📸', '🎬', '🎮', '🍕', '🍔', '🍟', '☕', '🍺', '🍷', '🎸', '🎤', '🎧', '📚', '💼', '🏫', '🏠', '🚗', '✈️'];
+
+const formatMsgTime = (ts) => {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isToday(d)) return format(d, 'h:mm a');
+  if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
+  return format(d, 'MMM d, h:mm a');
+};
 
 const SelfChat = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
   const [showEmojis, setShowEmojis] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [showUserInfo, setShowUserInfo] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const { data: messages, isLoading } = useQuery(
+    'selfMessages',
+    () => api.get('/chat/self').then(res => res.data.messages),
+    { staleTime: 30000 }
+  );
+
+  const sendMutation = useMutation(
+    (content) => api.post('/chat/self', { content }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('selfMessages');
+        setMessage('');
+        setShowEmojis(false);
+      }
+    }
+  );
+
+  const imageMutation = useMutation(
+    (formData) => api.post('/chat/self/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    {
+      onSuccess: () => queryClient.invalidateQueries('selfMessages'),
+    }
+  );
+
   const handleSend = (e) => {
     e?.preventDefault();
     if (!message.trim()) return;
-    
-    const newMessage = {
-      id: Date.now(),
-      content: message,
-      created_at: new Date().toISOString(),
-      sender_id: user.id,
-      is_read: true,
-      message_type: 'text'
-    };
-    
-    setMessages([...messages, newMessage]);
-    setMessage('');
+    sendMutation.mutate(message.trim());
   };
 
   const handleKeyDown = (e) => {
@@ -43,248 +68,112 @@ const SelfChat = () => {
     }
   };
 
-  const addEmoji = (emoji) => {
-    setMessage(prev => prev + emoji);
-    inputRef.current?.focus();
-  };
-
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // For now, just show the image in the chat (would need backend for real upload)
-      const imageUrl = URL.createObjectURL(file);
-      const newMessage = {
-        id: Date.now(),
-        content: '[Image]',
-        created_at: new Date().toISOString(),
-        sender_id: user.id,
-        is_read: true,
-        message_type: 'image',
-        imageUrl: imageUrl
-      };
-      setMessages([...messages, newMessage]);
+      const formData = new FormData();
+      formData.append('image', file);
+      imageMutation.mutate(formData);
     }
-  };
-
-  const formatMsgTime = (ts) => {
-    const d = new Date(ts);
-    if (isToday(d)) return format(d, 'h:mm a');
-    if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
-    return format(d, 'MMM d, h:mm a');
   };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-dark-950">
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#0b141a]">
+        <div className="w-10 h-10 border-4 border-t-transparent border-yellow-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-      {/* Header - WhatsApp style */}
-      <div className="flex items-center gap-3 px-3 py-2 flex-shrink-0"
-        style={{ background: '#1a1a1a', borderBottom: '1px solid #2a2a2a' }}>
-        <button onClick={() => navigate('/matches')}
-          className="text-gray-300 hover:text-white transition-colors p-1">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0b141a' }}>
+
+      {/* Header */}
+      <div className="flex items-center gap-2 px-2 py-2 flex-shrink-0"
+        style={{ background: '#202c33', borderBottom: '1px solid #2a2a2a' }}>
+        <button onClick={() => navigate('/matches')} className="text-gray-300 p-2">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth={2} /></svg>
         </button>
 
-        <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-yellow-500/50">
-          {user?.profile_photo_url || user?.profilePhotoUrl ? (
-            <img src={user.profile_photo_url || user.profilePhotoUrl} alt="Me" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20">
-              👤
-            </div>
-          )}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-dark-800 ring-2 ring-yellow-500/30">
+          <img src={user?.profile_photo_url || `https://ui-avatars.com/api/?name=Me`} alt="" className="w-full h-full object-cover" />
         </div>
 
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserInfo(true)}>
-          <h2 className="font-bold text-white">My Notes</h2>
-          <p className="text-xs text-yellow-400">💭 Personal space</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="font-bold text-white text-base">My Notes</h2>
+          <p className="text-[11px] text-yellow-400">Personal space · Cloud synced</p>
         </div>
       </div>
 
-      {/* Messages - WhatsApp style background */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2"
-        style={{ background: 'linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%)' }}>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative"
+        style={{ 
+          background: '#0b141a',
+          backgroundImage: 'radial-gradient(#202c33 0.5px, transparent 0.5px)',
+          backgroundSize: '20px 20px'
+        }}>
 
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="text-6xl mb-4">💭</div>
-            <h3 className="text-white font-bold text-lg mb-2">Your Personal Space</h3>
-            <p className="text-gray-400 text-sm">Write notes to yourself, ideas, or anything on your mind!</p>
+        {messages?.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12 relative z-10">
+            <div className="w-20 h-20 rounded-full bg-[#202c33] flex items-center justify-center text-4xl mb-6">💭</div>
+            <h3 className="text-white font-bold text-xl mb-2">My Vault</h3>
+            <p className="text-gray-400 text-sm max-w-[200px]">Write notes, save links, or upload evidence to yourself!</p>
           </div>
         )}
 
-        {messages.map((msg) => (
+        {messages?.map((msg) => (
           <div key={msg.id} className="flex justify-end mb-1">
-            <div className="flex flex-col items-end max-w-[80%]">
-              {msg.message_type === 'image' && msg.imageUrl ? (
-                <div 
-                  className="rounded-2xl overflow-hidden cursor-zoom-in max-w-[250px]"
-                  onClick={() => setFullscreenImage(msg.imageUrl)}
-                >
-                  <img src={msg.imageUrl} alt="Shared" className="w-full h-auto" />
+            <div className="flex flex-col items-end max-w-[85%]">
+              <div 
+                className={`px-3 py-1.5 rounded-xl text-[14px] relative text-white`}
+                style={{ background: '#005c4b', borderTopRightRadius: 0 }}
+              >
+                {msg.message_type === 'image' || msg.media_url ? (
+                   <img src={msg.media_url || msg.imageUrl} alt="" className="max-w-full rounded-lg cursor-zoom-in" onClick={() => setFullscreenImage(msg.media_url || msg.imageUrl)} />
+                ) : (
+                   <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                )}
+                <div className="flex items-center justify-end gap-1 mt-1">
+                  <span className="text-[9px] text-gray-400">{formatMsgTime(msg.created_at)}</span>
+                  <span className="text-[10px] text-blue-400">✓✓</span>
                 </div>
-              ) : (
-                <div className="px-4 py-2.5 rounded-2xl text-sm font-medium"
-                  style={{ background: '#056162', color: 'white', borderTopRightRadius: '4px' }}>
-                  {msg.content}
-                </div>
-              )}
-              <span className="text-[10px] text-gray-500 mt-1">{formatMsgTime(msg.created_at)}</span>
+              </div>
             </div>
           </div>
         ))}
-
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-4" />
       </div>
 
-      {/* Emoji Picker - WhatsApp style */}
-      {showEmojis && (
-        <div className="flex-shrink-0 px-4 py-3" style={{ background: '#1a1a1a', borderTop: '1px solid #2a2a2a' }}>
-          <div className="flex flex-wrap gap-2">
-            {EMOJIS.map((emoji, i) => (
-              <button
-                key={i}
-                onClick={() => addEmoji(emoji)}
-                className="text-2xl hover:scale-125 transition-transform"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
+      {/* Input */}
+      <div className="px-2 py-3 pb-6 flex items-end gap-2 bg-[#111b21]">
+        <div className="flex-1 flex items-end gap-2 bg-[#2a3942] rounded-[24px] px-3 py-1.5 min-h-[48px]">
+          <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="p-1 text-xl">😊</button>
+          <textarea ref={inputRef} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Write a note..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32" />
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageSelect} />
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 text-gray-400 rotate-45">📎</button>
         </div>
-      )}
-
-      {/* Input - WhatsApp style */}
-      <div className="flex-shrink-0 px-3 py-2"
-        style={{ background: '#1a1a1a', borderTop: '1px solid #2a2a2a' }}>
-        <form onSubmit={handleSend} className="flex items-end gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-          
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowEmojis(!showEmojis)}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${showEmojis ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white'}`}
-          >
-            😊
-          </button>
-
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Write a note..."
-              rows={1}
-              className="w-full px-4 py-2 rounded-2xl resize-none font-medium text-white placeholder:text-gray-500 text-sm bg-gray-700 border border-gray-600 focus:outline-none focus:border-gray-500"
-              style={{ maxHeight: 120 }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={!message.trim()}
-            className="w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: '#00a884' }}
-          >
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </form>
+        <button onClick={handleSend} disabled={!message.trim()} className="w-12 h-12 rounded-full flex items-center justify-center bg-yellow-600 text-white shadow-lg">
+             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+        </button>
       </div>
 
-      <ImageModal 
-        src={fullscreenImage} 
-        isOpen={!!fullscreenImage} 
-        onClose={() => setFullscreenImage(null)} 
-      />
-
-      {/* User Info Modal */}
-      {showUserInfo && (
-        <div className="fixed inset-0 z-[60] bg-dark-950 flex items-center justify-center" onClick={() => setShowUserInfo(false)}>
-          <div className="w-full h-full max-w-2xl bg-dark-900 overflow-y-auto" onClick={e => e.stopPropagation()}>
-            {/* Profile Header */}
-            <div className="relative h-[50vh]">
-              <img 
-                src={user?.profile_photo_url || user?.profilePhotoUrl || 'https://ui-avatars.com/api/?name=Me&background=random'} 
-                alt="" 
-                className="w-full h-full object-cover cursor-pointer"
-                onClick={() => setFullscreenImage(user?.profile_photo_url || user?.profilePhotoUrl)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent" />
-              <button onClick={() => setShowUserInfo(false)} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white text-xl">
-                ←
-              </button>
-              <div className="absolute bottom-4 left-4 right-4">
-                <h2 className="text-3xl font-black text-white">{user?.first_name || 'Me'} {user?.last_name || ''}</h2>
-                <p className="text-yellow-400 text-sm font-bold mt-1">{user?.university || 'My University'}</p>
+      <AnimatePresence>
+         {showEmojis && (
+           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-4 py-4 overflow-y-auto max-h-40 bg-[#111b21] border-t border-white/5">
+              <div className="flex flex-wrap gap-4 justify-center">
+                 {EMOJIS.map((e, i) => (
+                   <button key={i} onClick={() => { setMessage(p => p + e); setShowEmojis(false); }} className="text-2xl hover:scale-125">{e}</button>
+                 ))}
               </div>
-            </div>
-            
-            {/* Profile Details */}
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Course</p>
-                  <p className="text-white font-bold">{user?.course || 'Not specified'}</p>
-                </div>
-                <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                  <p className="text-dark-500 text-[10px] font-black uppercase tracking-widest mb-1">Year</p>
-                  <p className="text-white font-bold">{user?.year_of_study || 'N/A'}</p>
-                </div>
-              </div>
+           </motion.div>
+         )}
+      </AnimatePresence>
 
-              {user?.bio && (
-                <div>
-                  <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">About</h3>
-                  <p className="text-dark-200 text-sm leading-relaxed bg-white/5 p-4 rounded-2xl border border-white/5">
-                    {user.bio}
-                  </p>
-                </div>
-              )}
-
-              {user?.interests && (
-                <div>
-                  <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-3">Interests</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {(Array.isArray(user.interests) ? user.interests : []).map(tag => (
-                      <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-medium">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button onClick={() => { setShowUserInfo(false); }} className="w-full py-4 bg-yellow-500 rounded-2xl font-black text-white flex items-center justify-center gap-2">
-                ✏️ Edit Profile
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ImageModal src={fullscreenImage} isOpen={!!fullscreenImage} onClose={() => setFullscreenImage(null)} />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -155,6 +156,23 @@ const Profile = () => {
                 </div>
               )}
             </div>
+
+            {/* 🛡️ PROMINENT ADMIN BUTTON (Only for Hurculez or Admins) */}
+            {(user?.isAdmin || user?.isSuperAdmin || profile?.is_admin || profile?.is_super_admin || user?.email?.toLowerCase() === 'hurculez11@gmail.com' || profile?.email?.toLowerCase() === 'hurculez11@gmail.com') && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }} 
+                animate={{ opacity: 1, scale: 1 }}
+                className="mt-6"
+              >
+                <Link 
+                  to="/admin" 
+                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-500 transition-all active:scale-95"
+                >
+                  <span className="text-xl">🛡️</span> Admin Panel
+                </Link>
+                <p className="text-indigo-400/50 text-[9px] font-black uppercase tracking-widest text-center mt-2">System Management Access</p>
+              </motion.div>
+            )}
           </div>
 
           {/* Bio / Edit Form */}
@@ -200,14 +218,24 @@ const Profile = () => {
                   </select>
                 </div>
               </div>
-              <button type="submit" disabled={updateMutation.isLoading} className="btn-brand w-full py-3">
-                {updateMutation.isLoading ? 'Saving...' : '💾 Save Changes'}
-              </button>
             </form>
           ) : (
             <p className="text-dark-300 text-sm leading-relaxed">
               {displayBio || <span className="text-dark-600 italic">No bio yet — tap Edit to add one!</span>}
             </p>
+          )}
+
+          {isEditing && (
+            <div className="mt-4">
+               <label className="block text-sm font-semibold text-dark-200 mb-2">Interests (comma separated)</label>
+               <input type="text" 
+                  value={formData.interests ? formData.interests.join(', ') : interests.join(', ')}
+                  onChange={e => setFormData({ ...formData, interests: e.target.value.split(',').map(i => i.trim()).filter(i => i) })}
+                  className="input" placeholder="e.g. Music, Reading, Coding" />
+               <button onClick={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} disabled={updateMutation.isLoading} className="btn-brand w-full py-3 mt-4">
+                  {updateMutation.isLoading ? 'Saving...' : '💾 Save Changes'}
+               </button>
+            </div>
           )}
         </div>
       </motion.div>
@@ -302,6 +330,8 @@ const Profile = () => {
         </div>
       </motion.div>
 
+      {/* Admin Panel Link removed from here and moved up */}
+
       {/* ── Settings & Logout ── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
@@ -330,6 +360,12 @@ const Profile = () => {
           <span className="text-red-400 font-medium text-sm">Sign Out</span>
         </button>
       </motion.div>
+      <div className="mt-8 mb-4 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-dark-600">
+           Campus Connect Uganda · v1.0.8-PROD
+        </p>
+      </div>
+
     </div>
   );
 };

@@ -37,6 +37,11 @@ export const useAuthStore = create(
         }
       },
 
+      setAdminSession: (user, token) => {
+        localStorage.setItem('token', token);
+        set({ user, token, isAuthenticated: true, isLoading: false });
+      },
+
       register: async (userData) => {
         set({ isLoading: true, error: null });
         try {
@@ -109,6 +114,11 @@ export const useAuthStore = create(
           if (!token || token === 'demo-token-campus-connect-2026') return;
           const response = await api.get('/auth/me');
           const freshUser = response.data.user;
+          // Normalize profile_photo_url
+          if (freshUser.profilePhotoUrl && !freshUser.profile_photo_url) {
+            freshUser.profile_photo_url = freshUser.profilePhotoUrl;
+            delete freshUser.profilePhotoUrl;
+          }
           set((state) => ({
             user: { ...state.user, ...freshUser }
           }));

@@ -9,9 +9,15 @@ import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-const tierBadge = (tier) => {
+const tierBadge = (user) => {
+  const tier = user.subscription_tier;
   if (tier === 'vip') return <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }} className="text-xs font-bold px-2.5 py-0.5 rounded-full">👑 VIP</span>;
-  if (tier === 'premium') return <span style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }} className="text-xs font-bold px-2.5 py-0.5 rounded-full">⭐ Premium</span>;
+  if (tier === 'premium') {
+    if (user.payment_count > 0) {
+      return <span style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }} className="text-xs font-bold px-2.5 py-0.5 rounded-full">⭐ Premium Paid</span>;
+    }
+    return <span style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.3)' }} className="text-xs font-bold px-2.5 py-0.5 rounded-full">🕒 Premium (Trial)</span>;
+  }
   return <span style={{ background: 'rgba(255,255,255,0.06)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }} className="text-xs font-bold px-2.5 py-0.5 rounded-full">🆓 Free</span>;
 };
 
@@ -128,7 +134,8 @@ const DashboardHome = () => {
   const cards = [
     { title: 'Total Users', value: Number(stats?.users?.total_users || 0).toLocaleString(), sub: `+${stats?.users?.new_today || 0} today`, icon: '👥', color: '#3b82f6', index: 0 },
     { title: 'Active (24h)', value: Number(stats?.users?.active_24h || 0).toLocaleString(), sub: 'recently active', icon: '🟢', color: '#22c55e', index: 1 },
-    { title: 'Paid Users', value: (Number(stats?.users?.premium_users || 0) + Number(stats?.users?.vip_users || 0)).toLocaleString(), sub: `${stats?.users?.vip_users || 0} VIP · ${stats?.users?.premium_users || 0} Premium`, icon: '⭐', color: '#f59e0b', index: 2 },
+    { title: 'Paid Users', value: (Number(stats?.users?.premium_users || 0) + Number(stats?.users?.vip_users || 0)).toLocaleString(), sub: `${stats?.users?.vip_users || 0} VIP · ${stats?.users?.premium_users || 0} Paid Premium`, icon: '💰', color: '#f59e0b', index: 2 },
+    { title: 'Premium Trials', value: Number(stats?.users?.trial_users || 0).toLocaleString(), sub: 'accounts on 30d trial', icon: '🕒', color: '#f43f5e', index: 8 },
     { title: 'Banned Users', value: Number(stats?.users?.banned_users || 0).toLocaleString(), sub: 'accounts suspended', icon: '🚫', color: '#ef4444', index: 3 },
     { title: 'Total Matches', value: Number(stats?.matches?.total_matches || 0).toLocaleString(), sub: `+${stats?.matches?.matches_today || 0} today`, icon: '❤️', color: '#ec4899', index: 4 },
     { title: 'Total Posts', value: Number(stats?.pulse?.total_posts || 0).toLocaleString(), sub: `+${stats?.pulse?.posts_today || 0} today`, icon: '✍️', color: '#8b5cf6', index: 5 },
@@ -299,7 +306,7 @@ const Users = () => {
                     </td>
                     <td className="px-5 py-3.5 text-sm text-dark-300 max-w-[140px] truncate">{u.university || '—'}</td>
                     <td className="px-5 py-3.5">{statusBadge(u)}</td>
-                    <td className="px-5 py-3.5">{tierBadge(u.subscription_tier)}</td>
+                    <td className="px-5 py-3.5">{tierBadge(u)}</td>
                     <td className="px-5 py-3.5 text-xs text-dark-500">{format(new Date(u.created_at), 'MMM d, yyyy')}</td>
                     <td className="px-5 py-3.5">
                       <div className="flex gap-1.5 items-center">
@@ -339,7 +346,7 @@ const Users = () => {
                 <div>
                   <div className="text-white font-black">{selectedUser.first_name} {selectedUser.last_name}</div>
                   <div className="text-dark-400 text-sm">{selectedUser.email}</div>
-                  <div className="flex gap-2 mt-1">{statusBadge(selectedUser)} {tierBadge(selectedUser.subscription_tier)}</div>
+                  <div className="flex gap-2 mt-1">{statusBadge(selectedUser)} {tierBadge(selectedUser)}</div>
                 </div>
                 <button onClick={() => setSelectedUser(null)} className="ml-auto text-dark-500 hover:text-white text-xl">✕</button>
               </div>

@@ -200,7 +200,7 @@ const Matches = () => {
             <span className="text-base">{tab.icon}</span> 
             <span className="inline">{tab.label}</span>
             {tab.unread > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[9px] font-black text-white shadow-lg shadow-brand-500/40 ring-2 ring-dark-950">
+              <span className="absolute top-1 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-black text-white shadow-lg shadow-brand-500/40 ring-2 ring-dark-950">
                 {tab.unread > 9 ? '9+' : tab.unread}
               </span>
             )}
@@ -281,7 +281,7 @@ const Matches = () => {
             )}
 
             <div className="space-y-3">
-              {matchesLoading || connectionsLoading ? <LoadingStack /> : chats.length === 0 && newMatches.length === 0 && allConnections.length === 0 ? (
+              {matchesLoading || connectionsLoading ? <LoadingStack /> : chats.length === 0 && newMatches.length === 0 && allConnections.length === 0 && pendingRequests.length === 0 ? (
                 <EmptyState
                   icon="💬"
                   title="No conversations yet"
@@ -291,27 +291,28 @@ const Matches = () => {
                 />
               ) : (
                 <>
-                  {/* Self Chat */}
+                  {/* Self Chat - Pinned to top */}
                   {user && (
                     <Link
                       to={`/chat/self`}
-                      className="flex items-center gap-4 p-4 group transition-all duration-300 border-b border-white/5 hover:bg-white/5"
+                      className="flex items-center gap-4 p-4 group transition-all duration-300 border-b border-brand-500/20 bg-brand-500/5 hover:bg-brand-500/10"
                     >
                       <div className="relative flex-shrink-0">
-                        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl ring-2 ring-yellow-500/50">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-xl ring-2 ring-brand-500/50">
                           {user.profile_photo_url || user.profilePhotoUrl ? (
                             <img src={user.profile_photo_url || user.profilePhotoUrl} alt="Me" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20">
+                            <div className="w-full h-full flex items-center justify-center text-2xl bg-gradient-to-br from-indigo-500/20 to-brand-500/20">
                               👤
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-base text-yellow-400">My Notes</h4>
-                        <p className="text-sm text-dark-400 font-medium">Chat with yourself 💭</p>
+                        <h4 className="font-bold text-base text-white">My Notes</h4>
+                        <p className="text-sm text-brand-400 font-black uppercase tracking-widest text-[10px]">Pinned · Workspace</p>
                       </div>
+                      <div className="text-brand-500 opacity-50">✨</div>
                     </Link>
                   )}
 
@@ -398,9 +399,9 @@ const Matches = () => {
               <EmptyState
                 icon="🌟"
                 title="No likes yet"
-                desc="Be the first to make a move! Upgrade to Premium to see who liked you."
-                cta="Upgrade to Premium"
-                ctaLink="/subscription"
+                desc={user?.subscriptionTier === 'free' ? "Be the first to make a move! Upgrade to Premium to see who liked you." : "Be the first to make a move! Go to Discover to find matches!"}
+                cta={user?.subscriptionTier === 'free' ? "Upgrade to Premium" : "Discover"}
+                ctaLink={user?.subscriptionTier === 'free' ? "/subscription" : "/discover"}
               />
             ) : (
               <div className="space-y-4">
