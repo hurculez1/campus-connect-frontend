@@ -169,7 +169,9 @@ const Pulse = () => {
     if (userId === user?.id) { navigate('/chat/self'); return; }
     try {
       const res = await api.post('/chat/connection/start', { targetUserId: userId });
-      if (res.data.connectionId) {
+      if (res.data.matchId) {
+        navigate(`/chat/${res.data.matchId}`);
+      } else if (res.data.connectionId) {
         navigate(`/connection/${res.data.connectionId}`);
       } else {
         navigate('/matches');

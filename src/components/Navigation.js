@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from 'react-query';
 import api from '../utils/api';
 import { io } from 'socket.io-client';
+import { useAuthStore } from '../stores/authStore';
 
 const navItems = [
   {
@@ -64,6 +65,7 @@ const navItems = [
 ];
 
 const Navigation = () => {
+  const { user } = useAuthStore();
   const location = useLocation();
   const queryClient = useQueryClient();
   const [socket, setSocket] = useState(null);
@@ -164,7 +166,15 @@ const Navigation = () => {
             >
               <div className={`relative transition-all duration-500 mb-1 ${isActive ? 'scale-110' : 'opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100'}`}>
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-white/10 shadow-lg' : ''}`}>
-                  <span className="text-2xl drop-shadow-md">{item.emoji}</span>
+                  {item.label === 'Profile' && user?.profile_photo_url ? (
+                    <img 
+                      src={user.profile_photo_url} 
+                      alt="" 
+                      className={`w-7 h-7 rounded-full object-cover border-2 ${isActive ? 'border-brand-500' : 'border-white/20 opacity-60'}`} 
+                    />
+                  ) : (
+                    <span className="text-2xl drop-shadow-md">{item.emoji}</span>
+                  )}
                 </div>
 
                 {showBadge && (

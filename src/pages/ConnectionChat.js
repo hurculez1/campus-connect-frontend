@@ -294,7 +294,7 @@ const ConnectionChat = () => {
 
         <div className="relative flex-shrink-0 shadow-xl">
           <div className="w-10 h-10 rounded-full overflow-hidden cursor-pointer bg-dark-800"
-            onClick={() => setFullscreenImage(otherUser?.profile_photo_url)}>
+            onClick={() => setShowUserInfo(true)}>
             {otherUser?.profile_photo_url ? (
                <img src={otherUser.profile_photo_url} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -304,7 +304,7 @@ const ConnectionChat = () => {
         </div>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowUserInfo(true)}>
-          <h2 className="font-bold text-white text-base truncate leading-tight">{otherUser?.first_name || 'Vibe Check'}</h2>
+          <h2 className="font-bold text-white text-base truncate leading-tight">{otherUser?.first_name || 'Chatting...'}</h2>
           <p className={`text-[11px] font-medium tracking-tight ${otherTyping ? 'text-green-400' : 'text-gray-400'}`}>
             {otherTyping ? 'typing...' : (otherUser?.university || 'Connecting...')}
           </p>
@@ -357,7 +357,7 @@ const ConnectionChat = () => {
       <div className="px-2 py-3 pb-6 flex items-end gap-2 bg-[#111b21] border-t border-white/5">
         <div className="flex-1 flex items-end gap-2 bg-[#2a3942] rounded-[24px] px-3 py-1.5 min-h-[48px] shadow-inner">
           <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="p-1 text-xl hover:scale-110 transition-transform">😊</button>
-          <textarea ref={inputRef} value={message} onChange={handleInput} onKeyDown={handleKeyDown} placeholder="Vibe check..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32 text-sm font-medium" />
+          <textarea ref={inputRef} value={message} onChange={handleInput} onKeyDown={handleKeyDown} placeholder="Send a message..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32 text-sm font-medium" />
           <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
           {/* Bold prominent image upload button */}
           <button

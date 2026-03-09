@@ -7,6 +7,7 @@ import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆', '👍', '👎', '💕', '💔', '🥳', '🤔', '😢', '😮', '💪', '🎯', '🌟', '💫', '🎊', '🎁', '🌈', '☀️', '🌙', '⚡', '🎭', '🎨', '📸', '🎬', '🎮', '🍕', '🍔', '🍟', '☕', '🍺', '🍷', '🎸', '🎤', '🎧', '📚', '💼', '🏫', '🏠', '🚗', '✈️'];
 
@@ -35,6 +36,29 @@ const SelfChat = () => {
     { staleTime: 30000 }
   );
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let socketUrl = window.location.origin;
+    const apiBase = localStorage.getItem('apiBase');
+    if (apiBase) socketUrl = apiBase.replace('/api', '');
+
+    const socket = io(socketUrl, { auth: { token } });
+
+    socket.on('connect', () => {
+       socket.emit('join_match', 0); // Reuse match room 0 for self notes
+    });
+
+    socket.on('new_message', (data) => {
+       if (data.matchId === 0) {
+          queryClient.invalidateQueries('selfMessages');
+       }
+    });
+
+    return () => socket.disconnect();
+  }, [queryClient]);
+
   const sendMutation = useMutation(
     (content) => api.post('/chat/self', { content }),
     {
@@ -42,7 +66,8 @@ const SelfChat = () => {
         queryClient.invalidateQueries('selfMessages');
         setMessage('');
         setShowEmojis(false);
-      }
+      },
+      onError: () => toast.error('Failed to save note')
     }
   );
 
@@ -51,7 +76,11 @@ const SelfChat = () => {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
     {
-      onSuccess: () => queryClient.invalidateQueries('selfMessages'),
+      onSuccess: () => {
+        queryClient.invalidateQueries('selfMessages');
+        toast.success('Image saved to notes');
+      },
+      onError: () => toast.error('Image upload failed')
     }
   );
 

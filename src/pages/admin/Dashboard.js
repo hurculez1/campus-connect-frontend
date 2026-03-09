@@ -8,6 +8,13 @@ import api from '../../utils/api';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
+const INTERESTS = [
+  '📚 Academics', '🎵 Music', '⚽ Sports', '🎭 Drama', '🌿 Nature',
+  '🍳 Cooking', '✈️ Travel', '🎨 Art', '💻 Tech', '📖 Reading',
+  '🏋️ Fitness', '🎮 Gaming', '🌍 Volunteering', '📷 Photography',
+  '🎤 Debate', '🧘 Wellness', '🎬 Movies', '🌱 Eco-Living',
+];
+
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const tierBadge = (user) => {
   const tier = user.subscription_tier;
@@ -156,8 +163,16 @@ const DashboardHome = () => {
           <h1 className="text-2xl font-black text-white">Dashboard</h1>
           <p className="text-dark-400 text-sm mt-0.5">Campus Connect Uganda · Real-time overview</p>
         </div>
-        <div className="text-xs text-dark-600 bg-white/5 px-3 py-1.5 rounded-full">
-          🕒 Auto-refreshes every 30s
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => { qc.invalidateQueries('adminStats'); toast.success('Stats refreshed'); }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
+          >
+            🔄 Refresh Now
+          </button>
+          <div className="text-xs text-dark-600 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+            🕒 Auto-refreshes every 30s
+          </div>
         </div>
       </div>
 
@@ -250,6 +265,34 @@ const Users = () => {
   );
 
   const users = data?.users || [];
+  
+  const [editUni, setEditUni] = useState('');
+  const [editInts, setEditInts] = useState([]);
+
+  useEffect(() => {
+    if (selectedUser) {
+      setEditUni(selectedUser.university || '');
+      let ints = [];
+      try {
+        ints = selectedUser.interests ? (typeof selectedUser.interests === 'string' ? JSON.parse(selectedUser.interests) : selectedUser.interests) : [];
+      } catch (e) { ints = []; }
+      setEditInts(Array.isArray(ints) ? ints : []);
+    }
+  }, [selectedUser]);
+
+  const updateProfileM = useMutation(
+    (data) => api.put(`/admin/users/${selectedUser.id}/edit-profile`, data),
+    {
+      onSuccess: () => {
+        qc.invalidateQueries('adminUsers');
+        toast.success('User profile updated');
+      }
+    }
+  );
+
+  const toggleInterest = (i) => {
+    setEditInts(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
+  };
 
   return (
     <div className="space-y-6">
@@ -304,7 +347,7 @@ const Users = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-sm text-dark-300 max-w-[140px] truncate">{u.university || '—'}</td>
+                    <td className="px-5 py-3.5 text-sm text-dark-300 font-medium whitespace-nowrap overflow-visible">{u.university || '—'}</td>
                     <td className="px-5 py-3.5">{statusBadge(u)}</td>
                     <td className="px-5 py-3.5">{tierBadge(u)}</td>
                     <td className="px-5 py-3.5 text-xs text-dark-500">{format(new Date(u.created_at), 'MMM d, yyyy')}</td>
@@ -329,6 +372,16 @@ const Users = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Manual Refresh for Users */}
+      <div className="flex justify-end mt-4">
+        <button 
+          onClick={() => { qc.invalidateQueries('adminUsers'); toast.success('Updating user list...'); }}
+          className="text-xs font-bold text-dark-400 hover:text-white flex items-center gap-2"
+        >
+          🔄 Click to refresh items manually
+        </button>
       </div>
 
       {/* User detail modal */}
@@ -362,6 +415,43 @@ const Users = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Edit University & Interests */}
+              <div className="space-y-4 py-2 border-y border-white/5">
+                <div>
+                  <label className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-2 block">University / Institute</label>
+                  <input 
+                    type="text" 
+                    value={editUni} 
+                    onChange={e => setEditUni(e.target.value)}
+                    className="input text-xs py-2 bg-white/5 border-white/10"
+                    placeholder="University Name"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-2 block">Interests (Tags)</label>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    {INTERESTS.map(tag => {
+                      const active = editInts.includes(tag);
+                      return (
+                        <button key={tag} onClick={() => toggleInterest(tag)}
+                          className={`px-2 py-1 rounded-full text-[10px] font-bold transition-all ${active ? 'bg-brand-500 text-white' : 'bg-white/5 text-dark-400 border border-white/10 hover:border-white/30'}`}>
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => updateProfileM.mutate({ university: editUni, interests: editInts })}
+                  disabled={updateProfileM.isLoading}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20"
+                >
+                  {updateProfileM.isLoading ? 'Saving...' : '💾 Save Profile Changes'}
+                </button>
               </div>
 
               {/* Admin promotion */}

@@ -151,8 +151,10 @@ const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
               onClick={async () => {
                 try {
                   const res = await api.post('/chat/connection/start', { targetUserId: user.id });
-                  if (res.data.connectionId) {
-                    onClose();
+                  onClose();
+                  if (res.data.matchId) {
+                    onAction?.('navigate', `/chat/${res.data.matchId}`);
+                  } else if (res.data.connectionId) {
                     onAction?.('navigate', `/connection/${res.data.connectionId}`);
                   }
                 } catch { onConnect(user.id); onClose(); }
@@ -240,7 +242,43 @@ const MatchCelebration = ({ match, mode, onClose, onMessage }) => {
   );
 };
 
-// ─── Profile Card ───────────────────────────────────────────────────────────
+// ─── Swipe Hint / Gestures ──────────────────────────────────────────────────
+const SwipeHint = ({ isDating }) => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="absolute inset-0 z-[100] flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-[2px]"
+    >
+      <div className="relative w-full h-full">
+         {/* Hint Icons */}
+         <motion.div 
+            animate={{ x: [0, 80, 0, -80, 0], opacity: [0, 1, 1, 1, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
+         >
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-xl border border-white/40 flex items-center justify-center text-4xl shadow-2xl">
+              👆
+            </div>
+         </motion.div>
+         
+         <div className="absolute top-1/2 left-[15%] -translate-y-1/2 flex flex-col items-center">
+            <div className="w-14 h-14 rounded-full bg-red-500/80 flex items-center justify-center text-white text-2xl shadow-lg mb-2">✕</div>
+            <p className="text-white text-[10px] font-black uppercase tracking-widest">Swipe Left to Pass</p>
+         </div>
+         
+         <div className="absolute top-1/2 right-[15%] -translate-y-1/2 flex flex-col items-center">
+            <div className={`w-14 h-14 rounded-full ${isDating ? 'bg-brand-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-2xl shadow-lg mb-2`}>❤️</div>
+            <p className="text-white text-[10px] font-black uppercase tracking-widest">Swipe Right to {isDating ? 'Like' : 'Connect'}</p>
+         </div>
+
+         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-center">
+            <p className="text-white font-black text-xs uppercase tracking-[0.2em] animate-pulse">Tap anywhere to start</p>
+         </div>
+      </div>
+    </motion.div>
+  );
+};
 const ProfileCard = ({ profile, mode, onTap }) => {
   const [photoIdx, setPhotoIdx] = useState(0);
   const isDating = mode === 'dating';
@@ -269,7 +307,9 @@ const ProfileCard = ({ profile, mode, onTap }) => {
     e.stopPropagation();
     try {
       const res = await api.post('/chat/connection/start', { targetUserId: profile.id });
-      if (res.data.connectionId) {
+      if (res.data.matchId) {
+        navigate(`/chat/${res.data.matchId}`);
+      } else if (res.data.connectionId) {
         navigate(`/connection/${res.data.connectionId}`);
       } else {
         toast.error('Could not open chat');
@@ -556,16 +596,18 @@ const Discover = () => {
         <div className="relative perspective-lg w-full flex-1 min-h-0 max-h-[520px] lg:max-h-[600px]">
           {currentIndex < matches.length && (
             <>
-              {/* Tap-to-swipe Arrows */}
+              {/* Tap-to-swipe Arrows - Made more visible and larger */}
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
-                className="absolute left-0 sm:left-2 lg:left-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-red-500 transition-all active:scale-75 group"
+                className="absolute left-[-20px] lg:left-[-60px] top-1/2 -translate-y-1/2 z-[61] w-14 h-14 rounded-full bg-black/80 border border-white/20 flex items-center justify-center text-2xl text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)] backdrop-blur-xl hover:bg-red-500 hover:text-white transition-all active:scale-75 cursor-pointer"
+                title="Pass"
               >
                 ✕
               </button>
               <button 
                 onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
-                className="absolute right-0 sm:right-2 lg:right-4 top-1/2 -translate-y-1/2 z-[60] w-12 h-12 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-2xl text-white shadow-2xl backdrop-blur-xl hover:bg-green-500 transition-all active:scale-75 group"
+                className="absolute right-[-20px] lg:right-[-60px] top-1/2 -translate-y-1/2 z-[61] w-14 h-14 rounded-full bg-black/80 border border-white/20 flex items-center justify-center text-2xl text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)] backdrop-blur-xl hover:bg-green-500 hover:text-white transition-all active:scale-75 cursor-pointer"
+                title="Like"
               >
                 ❤️
               </button>
@@ -600,24 +642,13 @@ const Discover = () => {
             );
           })}
 
-          {/* Tutorial Overlay */}
-          {matches.length > 0 && currentIndex < matches.length && !localStorage.getItem('swipe_tutorial_v2') && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-6 text-center"
-              onClick={() => { localStorage.setItem('swipe_tutorial_v2', 'true'); setCurrentIndex(ci => ci); }}>
-              <div className="space-y-10">
-                <div className="flex justify-center gap-16">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-14 h-14 rounded-full border-2 border-red-500 flex items-center justify-center text-red-500 text-2xl">✕</div>
-                    <span className="text-red-400 text-[10px] font-black tracking-widest uppercase">Swipe Left</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-14 h-14 rounded-full border-2 border-brand-500 flex items-center justify-center text-brand-500 text-2xl">❤️</div>
-                    <span className="text-brand-400 text-[10px] font-black tracking-widest uppercase">Swipe Right</span>
-                  </div>
-                </div>
-                <button className="btn-premium-v2 px-10 py-3 text-[10px]">GOT IT!</button>
-              </div>
-            </motion.div>
+          {/* Tutorial Overlay / Gesture Hint */}
+          {currentIndex === 0 && matches.length > 0 && !localStorage.getItem('swipe_tutorial_v3') && (
+            <div onClick={() => localStorage.setItem('swipe_tutorial_v3', 'true')} className="cursor-pointer">
+              <AnimatePresence>
+                <SwipeHint isDating={isDating} />
+              </AnimatePresence>
+            </div>
           )}
         </div>
 
