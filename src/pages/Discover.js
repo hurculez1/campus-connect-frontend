@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
 import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 // ─── SwipeCard — custom drag-based swipe ────────
 const SwipeCard = ({ onSwipe, mode, children }) => {
@@ -440,16 +441,14 @@ const Discover = () => {
   const handleDirectMatch = async (userId) => {
     if (!userId) return;
     try {
-      // Create actual match
-      const res = await api.post('/matches/direct', { targetUserId: userId });
-      if (res.data.matchId) {
-        navigate(`/chat/${res.data.matchId}`);
-      } else {
-        navigate('/matches');
+      // Send pending match request instead of instant match
+      const res = await api.post('/matches/request', { targetUserId: userId });
+      if (res.data.success) {
+        toast.success('Match request sent!');
       }
     } catch (err) {
-      console.error('Direct match failed:', err);
-      navigate('/matches');
+      const message = err.response?.data?.message || 'Failed to send match request';
+      toast.error(message);
     }
   };
 

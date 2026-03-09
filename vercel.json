@@ -1,12 +1,12 @@
 {
-  "name": "frontend",
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "CI=false npm run build",
-  "rewrites": [
-    { "source": "/admin_login", "destination": "/index.html" },
-    { "source": "/admin-login", "destination": "/index.html" },
-    { "source": "/admin", "destination": "/index.html" },
-    { "source": "/admin/*", "destination": "/index.html" },
-    { "source": "/(.*)", "destination": "/" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/admin_login", "dest": "/index.html" },
+    { "src": "/admin-login", "dest": "/index.html" },
+    { "src": "/admin", "dest": "/index.html" },
+    { "src": "/admin/.*", "dest": "/index.html" },
+    { "src": "/.*", "dest": "/index.html" }
   ]
 }

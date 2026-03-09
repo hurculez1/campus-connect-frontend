@@ -21,9 +21,10 @@ const ICEBREAKERS = [
   '😄 Rolex or Kikomando on a budget date?',
 ];
 
-const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆'];
+const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆', '👍', '👎', '💕', '💔', '🥳', '🤔', '😢', '😮', '💪', '🎯', '🌟', '💫', '🎊', '🎁', '🌈', '☀️', '🌙', '⚡', '🎭', '🎨', '📸', '🎬', '🎮', '🍕', '🍔', '🍟', '☕', '🍺', '🍷', '🎸', '🎤', '🎧', '📚', '💼', '🏫', '🏠', '🚗', '✈️'];
 
 const formatMsgTime = (ts) => {
+  if (!ts) return '';
   const d = new Date(ts);
   if (isToday(d)) return format(d, 'h:mm a');
   if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
@@ -35,6 +36,7 @@ const groupMessagesByDate = (msgs) => {
   const groups = [];
   let lastDate = null;
   msgs.forEach(msg => {
+    if (!msg?.created_at) return;
     const d = new Date(msg.created_at);
     const dateStr = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'MMMM d, yyyy');
     if (dateStr !== lastDate) {
@@ -466,11 +468,13 @@ const Chat = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm text-gray-400 hover:text-white transition-colors"
+              className="w-9 h-9 rounded-full flex items-center justify-center text-lg text-gray-400 hover:text-white hover:bg-gray-700 transition-all"
               style={{ background: 'transparent' }}
-              title="Send Image"
+              title="Send Photo"
             >
-              📷
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </button>
             <button
               type="button"
