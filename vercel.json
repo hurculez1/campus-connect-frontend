@@ -1,7 +1,7 @@
 {
   "name": "campus-connect-frontend",
   "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "CI=false react-scripts build",
+  "buildCommand": "CI=false npm run build",
   "rewrites": [
     { "source": "/admin_login", "destination": "/index.html" },
     { "source": "/admin-login", "destination": "/index.html" },
