@@ -24,7 +24,18 @@ const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏'
 
 // Removed timestamp utility as per user request
 const formatMsgTime = () => '';
-const groupMessagesByDate = (msgs) => msgs?.map(m => ({ type: 'msg', data: m })) || [];
+const groupMessagesByDate = (msgs) => {
+  if (!msgs) return [];
+  // Sort messages chronologically by created_at, then by id as tie-breaker
+  const sorted = [...msgs].sort((a, b) => {
+    const timeA = new Date(a.created_at || a.createdAt).getTime();
+    const timeB = new Date(b.created_at || b.createdAt).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    if (typeof a.id === 'number' && typeof b.id === 'number') return a.id - b.id;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  return sorted.map(m => ({ type: 'msg', data: m }));
+};
 
 const Chat = () => {
   const { matchId } = useParams();
@@ -50,13 +61,6 @@ const Chat = () => {
     { staleTime: 10000, retry: false }
   );
 
-  // Polling fallback for real-time messages
-  useEffect(() => {
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries(['messages', matchId]);
-    }, 4000); 
-    return () => clearInterval(interval);
-  }, [matchId, queryClient]);
 
   const sendMessageMutation = useMutation(
     (content) => api.post(`/chat/${matchId}/messages`, { 

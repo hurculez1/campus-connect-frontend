@@ -24,7 +24,16 @@ const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏'
 
 // Removed timestamp utility as per user request
 const formatMsgTime = () => '';
-const groupMessagesByDate = (msgs) => msgs?.map(m => ({ type: 'msg', data: m })) || [];
+const groupMessagesByDate = (msgs) => {
+  if (!msgs) return [];
+  const sorted = [...msgs].sort((a, b) => {
+    const timeA = new Date(a.created_at || a.createdAt).getTime();
+    const timeB = new Date(b.created_at || b.createdAt).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  return sorted.map(m => ({ type: 'msg', data: m }));
+};
 
 const ConnectionChat = () => {
   const { connectionId } = useParams();
