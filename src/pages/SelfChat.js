@@ -11,13 +11,7 @@ import { io } from 'socket.io-client';
 
 const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆', '👍', '👎', '💕', '💔', '🥳', '🤔', '😢', '😮', '💪', '🎯', '🌟', '💫', '🎊', '🎁', '🌈', '☀️', '🌙', '⚡', '🎭', '🎨', '📸', '🎬', '🎮', '🍕', '🍔', '🍟', '☕', '🍺', '🍷', '🎸', '🎤', '🎧', '📚', '💼', '🏫', '🏠', '🚗', '✈️'];
 
-const formatMsgTime = (ts) => {
-  if (!ts) return '';
-  const d = new Date(ts);
-  if (isToday(d)) return format(d, 'h:mm a');
-  if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
-  return format(d, 'MMM d, h:mm a');
-};
+const formatMsgTime = () => '';
 
 const SelfChat = () => {
   const navigate = useNavigate();
@@ -28,7 +22,6 @@ const SelfChat = () => {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const { data: messages, isLoading } = useQuery(
     'selfMessages',
@@ -40,20 +33,17 @@ const SelfChat = () => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    let socketUrl = window.location.origin;
-    const apiBase = localStorage.getItem('apiBase');
-    if (apiBase) socketUrl = apiBase.replace('/api', '');
-
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://backend-iota-azure-90.vercel.app';
     const socket = io(socketUrl, { auth: { token } });
 
     socket.on('connect', () => {
-       socket.emit('join_match', 0); // Reuse match room 0 for self notes
+      socket.emit('join_match', 0); // Reuse match room 0 for self notes
     });
 
     socket.on('new_message', (data) => {
-       if (data.matchId === 0) {
-          queryClient.invalidateQueries('selfMessages');
-       }
+      if (data.matchId === 0) {
+        queryClient.invalidateQueries('selfMessages');
+      }
     });
 
     return () => socket.disconnect();
@@ -71,18 +61,6 @@ const SelfChat = () => {
     }
   );
 
-  const imageMutation = useMutation(
-    (formData) => api.post('/chat/self/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('selfMessages');
-        toast.success('Image saved to notes');
-      },
-      onError: () => toast.error('Image upload failed')
-    }
-  );
 
   const handleSend = (e) => {
     e?.preventDefault();
@@ -97,14 +75,6 @@ const SelfChat = () => {
     }
   };
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append('image', file);
-      imageMutation.mutate(formData);
-    }
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -140,7 +110,7 @@ const SelfChat = () => {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 relative"
-        style={{ 
+        style={{
           background: '#0b141a',
           backgroundImage: 'radial-gradient(#202c33 0.5px, transparent 0.5px)',
           backgroundSize: '20px 20px'
@@ -157,17 +127,18 @@ const SelfChat = () => {
         {messages?.map((msg) => (
           <div key={msg.id} className="flex justify-end mb-1">
             <div className="flex flex-col items-end max-w-[85%]">
-              <div 
+              <div
                 className={`px-3 py-1.5 rounded-xl text-[14px] relative text-white`}
                 style={{ background: '#005c4b', borderTopRightRadius: 0 }}
               >
                 {msg.message_type === 'image' || msg.media_url ? (
-                   <img src={msg.media_url || msg.imageUrl} alt="" className="max-w-full rounded-lg cursor-zoom-in" onClick={() => setFullscreenImage(msg.media_url || msg.imageUrl)} />
+                  <div className="max-w-[260px] max-h-[300px] rounded-xl overflow-hidden cursor-zoom-in border border-white/10 shadow-lg mt-1" onClick={() => setFullscreenImage(msg.media_url || msg.imageUrl)}>
+                    <img src={msg.media_url || msg.imageUrl} alt="" className="w-full h-auto max-h-[300px] object-contain" />
+                  </div>
                 ) : (
-                   <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                  <span className="whitespace-pre-wrap break-words">{msg.content}</span>
                 )}
                 <div className="flex items-center justify-end gap-1 mt-1">
-                  <span className="text-[9px] text-gray-400">{formatMsgTime(msg.created_at)}</span>
                   <span className="text-[10px] text-blue-400">✓✓</span>
                 </div>
               </div>
@@ -182,24 +153,22 @@ const SelfChat = () => {
         <div className="flex-1 flex items-end gap-2 bg-[#2a3942] rounded-[24px] px-3 py-1.5 min-h-[48px]">
           <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="p-1 text-xl">😊</button>
           <textarea ref={inputRef} value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={handleKeyDown} placeholder="Write a note..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32" />
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageSelect} />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1 text-gray-400 rotate-45">📎</button>
         </div>
         <button onClick={handleSend} disabled={!message.trim()} className="w-12 h-12 rounded-full flex items-center justify-center bg-yellow-600 text-white shadow-lg">
-             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
         </button>
       </div>
 
       <AnimatePresence>
-         {showEmojis && (
-           <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-4 py-4 overflow-y-auto max-h-40 bg-[#111b21] border-t border-white/5">
-              <div className="flex flex-wrap gap-4 justify-center">
-                 {EMOJIS.map((e, i) => (
-                   <button key={i} onClick={() => { setMessage(p => p + e); setShowEmojis(false); }} className="text-2xl hover:scale-125">{e}</button>
-                 ))}
-              </div>
-           </motion.div>
-         )}
+        {showEmojis && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="px-4 py-4 overflow-y-auto max-h-40 bg-[#111b21] border-t border-white/5">
+            <div className="flex flex-wrap gap-4 justify-center">
+              {EMOJIS.map((e, i) => (
+                <button key={i} onClick={() => { setMessage(p => p + e); setShowEmojis(false); }} className="text-2xl hover:scale-125">{e}</button>
+              ))}
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <ImageModal src={fullscreenImage} isOpen={!!fullscreenImage} onClose={() => setFullscreenImage(null)} />

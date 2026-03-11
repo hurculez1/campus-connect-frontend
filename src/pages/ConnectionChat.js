@@ -22,30 +22,9 @@ const ICEBREAKERS = [
 
 const EMOJIS = ['❤️', '😊', '🔥', '😂', '🎉', '💯', '😍', '🙏', '✨', '🎓', '🇺🇬', '😎', '🥰', '🤗', '🎵', '🏆', '👍', '👎', '💕', '💔', '🥳', '🤔', '😢', '😮', '💪', '🎯', '🌟', '💫', '🎊', '🎁', '🌈', '☀️', '🌙', '⚡', '🎭', '🎨', '📸', '🎬', '🎮', '🍕', '🍔', '🍟', '☕', '🍺', '🍷', '🎸', '🎤', '🎧', '📚', '💼', '🏫', '🏠', '🚗', '✈️'];
 
-const formatMsgTime = (ts) => {
-  if (!ts) return '';
-  const d = new Date(ts);
-  if (isToday(d)) return format(d, 'h:mm a');
-  if (isYesterday(d)) return 'Yesterday ' + format(d, 'h:mm a');
-  return format(d, 'MMM d, h:mm a');
-};
-
-const groupMessagesByDate = (msgs) => {
-  if (!msgs?.length) return [];
-  const groups = [];
-  let lastDate = null;
-  msgs.forEach(msg => {
-    if (!msg?.created_at && !msg?.createdAt) return;
-    const d = new Date(msg.created_at || msg.createdAt);
-    const dateStr = isToday(d) ? 'Today' : isYesterday(d) ? 'Yesterday' : format(d, 'MMMM d, yyyy');
-    if (dateStr !== lastDate) {
-      groups.push({ type: 'date', label: dateStr });
-      lastDate = dateStr;
-    }
-    groups.push({ type: 'msg', data: msg });
-  });
-  return groups;
-};
+// Removed timestamp utility as per user request
+const formatMsgTime = () => '';
+const groupMessagesByDate = (msgs) => msgs?.map(m => ({ type: 'msg', data: m })) || [];
 
 const ConnectionChat = () => {
   const { connectionId } = useParams();
@@ -54,7 +33,6 @@ const ConnectionChat = () => {
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const fileInputRef = useRef(null);
   const [message, setMessage] = useState('');
   const [socket, setSocket] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
@@ -79,7 +57,10 @@ const ConnectionChat = () => {
   }, [chatData]);
 
   const sendMessageMutation = useMutation(
-    (content) => api.post(`/chat/connection/${connectionId}/messages`, { content }),
+    (content) => api.post(`/chat/connection/${connectionId}/messages`, { 
+      content,
+      createdAt: new Date().toISOString()
+    }),
     {
       onMutate: (content) => {
         const newMessage = {
@@ -107,7 +88,7 @@ const ConnectionChat = () => {
             // Socket hasn't arrived
             return {
               ...old,
-              messages: old.messages.map(m => m.id === context?.newMessage?.id ? { ...m, id: realId, created_at: new Date().toISOString() } : m)
+              messages: old.messages.map(m => m.id === context?.newMessage?.id ? { ...m, id: realId } : m)
             };
           }
         });
@@ -125,65 +106,11 @@ const ConnectionChat = () => {
     }
   );
 
-  const sendImageMutation = useMutation(
-    (formData) => api.post(`/chat/connection/${connectionId}/image`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
-    {
-      onMutate: (formData) => {
-        const file = formData.get('image');
-        if (file) {
-          const tempUrl = URL.createObjectURL(file);
-          const tempMsg = {
-            id: 'img-temp-' + Date.now(),
-            content: '',
-            message_type: 'image',
-            image_url: tempUrl,
-            sender_id: user?.id,
-            created_at: new Date().toISOString(),
-            is_read: false,
-          };
-          queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
-            if (!old || !old.messages) return { messages: [tempMsg] };
-            return { ...old, messages: [...old.messages, tempMsg] };
-          });
-          return { tempId: tempMsg.id, tempUrl };
-        }
-      },
-      onSuccess: (data, vars, context) => {
-        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
-          if (!old || !old.messages) return old;
-          return { ...old, messages: old.messages.map(m =>
-            m.id === context?.tempId
-              ? { ...m, ...data.data?.message, image_url: data.data?.message?.image_url || context.tempUrl }
-              : m
-          )};
-        });
-      },
-      onError: (err, vars, context) => {
-        queryClient.setQueryData(['connectionMessages', connectionId], (old) => {
-          if (!old || !old.messages) return old;
-          return { ...old, messages: old.messages.filter(m => m.id !== context?.tempId) };
-        });
-        toast.error('Image upload failed');
-      }
-    }
-  );
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Only images are allowed'); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error('Image too large (max 10MB)'); return; }
-    const formData = new FormData();
-    formData.append('image', file);
-    sendImageMutation.mutate(formData);
-    e.target.value = '';
-  };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const socketUrl = api.defaults.baseURL ? api.defaults.baseURL.replace('/api', '') : window.location.origin;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://backend-iota-azure-90.vercel.app';
     const newSocket = io(socketUrl, {
       auth: { token },
       transports: ['websocket', 'polling'],
@@ -201,7 +128,7 @@ const ConnectionChat = () => {
                 if (!old.messages) return { ...old, messages: [msg] };
                 if (old.messages.some(m => String(m.id) === String(msg.id))) return old;
                 
-                const deduplicated = old.messages.filter(m => !(m.id.toString().startsWith('temp-') && m.content === msg.content));
+                const deduplicated = old.messages.filter(m => !(String(m.id).startsWith('temp-') && m.content === msg.content));
                 return { ...old, messages: [...deduplicated, msg] };
             });
             // Mark as read immediately
@@ -210,6 +137,8 @@ const ConnectionChat = () => {
                 api.post(`/chat/connection/${connectionId}/read`).catch(() => {});
             }
         }
+        // Background refresh list
+        queryClient.invalidateQueries('connections');
     });
 
     newSocket.on('message_read_connection', ({ messageId }) => {
@@ -337,13 +266,18 @@ const ConnectionChat = () => {
                   style={{ background: isMe ? '#2a3942' : '#202c33', borderTopRightRadius: isMe ? 0 : 12, borderTopLeftRadius: isMe ? 12 : 0 }}
                 >
                    {msg.message_type === 'image' || msg.image_url ? (
-                    <img src={msg.image_url || msg.imageUrl} alt="" className="max-w-full rounded-lg cursor-zoom-in" onClick={() => setFullscreenImage(msg.image_url || msg.imageUrl)} />
+                    <div className="max-w-[240px] aspect-square rounded-xl overflow-hidden cursor-zoom-in border border-white/10 shadow-lg mt-1" onClick={() => setFullscreenImage(msg.image_url || msg.imageUrl)}>
+                       <img src={msg.image_url || msg.imageUrl} alt="" className="w-full h-full object-cover" />
+                    </div>
                   ) : (
                     <span className="whitespace-pre-wrap break-words leading-relaxed font-medium">{msg.content}</span>
                   )}
                   <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-[9px] text-gray-400 font-bold">{formatMsgTime(msg.created_at || msg.createdAt)}</span>
-                    {isMe && <span className={`text-[10px] ${msg.is_read ? 'text-blue-400' : 'text-gray-500'}`}>{msg.is_read ? '✓✓' : '✓'}</span>}
+                    {isMe && (
+                      <span className={`text-[10px] ${msg.is_read ? 'text-blue-400' : 'text-gray-500'}`}>
+                        {msg.is_read ? '✓✓' : '✓'}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -358,15 +292,6 @@ const ConnectionChat = () => {
         <div className="flex-1 flex items-end gap-2 bg-[#2a3942] rounded-[24px] px-3 py-1.5 min-h-[48px] shadow-inner">
           <button type="button" onClick={() => setShowEmojis(!showEmojis)} className="p-1 text-xl hover:scale-110 transition-transform">😊</button>
           <textarea ref={inputRef} value={message} onChange={handleInput} onKeyDown={handleKeyDown} placeholder="Send a message..." rows={1} className="flex-1 bg-transparent border-none text-white focus:ring-0 py-2 resize-none max-h-32 text-sm font-medium" />
-          <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
-          {/* Bold prominent image upload button */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sendImageMutation.isLoading}
-            className="p-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 transition-all text-indigo-400 font-black text-xl border border-indigo-600/30"
-            title="Share Image"
-          >📷</button>
           <button type="button" onClick={() => setShowIcebreakers(!showIcebreakers)} className="p-1 text-xl hover:scale-110 transition-transform">🧊</button>
         </div>
         <button onClick={handleSend} disabled={!message.trim()} className="w-12 h-12 rounded-full flex items-center justify-center bg-indigo-600 text-white shadow-lg active:scale-90 transition-transform disabled:opacity-50">

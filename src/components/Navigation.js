@@ -69,12 +69,20 @@ const Navigation = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [socket, setSocket] = useState(null);
-  
+
   const { data: notifications, error } = useQuery(
     'notifications',
     () => api.get('/users/notification-count').then(res => res.data),
     { staleTime: 30000, retry: 2 }
   );
+
+  // Polling fallback for real-time notification badges (Vercel doesn't support websockets well)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries('notifications');
+    }, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
+  }, [queryClient]);
 
   // Set up WebSocket for real-time notifications
   useEffect(() => {
@@ -82,12 +90,8 @@ const Navigation = () => {
     if (!token) return;
 
     // Get the current API base URL and convert to socket URL
-    let socketUrl = window.location.origin;
-    const apiBase = localStorage.getItem('apiBase');
-    if (apiBase) {
-      socketUrl = apiBase.replace('/api', '');
-    }
-    
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://backend-iota-azure-90.vercel.app';
+
     const newSocket = io(socketUrl, {
       auth: { token },
       reconnection: true,
@@ -95,45 +99,47 @@ const Navigation = () => {
       reconnectionDelay: 1000,
       transports: ['websocket', 'polling'],
     });
-    
+
     newSocket.on('connect', () => {
       console.log('Navigation socket connected:', newSocket.id);
     });
-    
+
     // Listen for new message notifications
     newSocket.on('new_message', (data) => {
       console.log('Navigation received new_message:', data);
-      // Invalidate notifications query to refetch
       queryClient.invalidateQueries('notifications');
     });
-    
+
+    newSocket.on('new_connection_message', (data) => {
+      console.log('Navigation received new_connection_message:', data);
+      queryClient.invalidateQueries('notifications');
+    });
+
     // Listen for new match notifications
     newSocket.on('new_match', (data) => {
       console.log('Navigation received new_match:', data);
       queryClient.invalidateQueries('notifications');
     });
-    
+
     // Listen for new like notifications
     newSocket.on('new_like', (data) => {
       console.log('Navigation received new_like:', data);
       queryClient.invalidateQueries('notifications');
     });
-    
+
     // Listen for unread count updates
     newSocket.on('unread_update', (data) => {
       console.log('Navigation received unread_update:', data);
       queryClient.invalidateQueries('notifications');
     });
-    
+
     setSocket(newSocket);
-    
+
     return () => {
       newSocket.disconnect();
     };
   }, [queryClient]);
 
-  // Debug log
-  console.log('Notifications:', notifications, 'Error:', error);
 
   return (
     <>
@@ -142,8 +148,8 @@ const Navigation = () => {
       >
         {/* Fading gradient to obscure scrolling content right above the bar */}
         <div className="h-12 w-full bg-gradient-to-t from-dark-950 via-dark-950/80 to-transparent pointer-events-none" />
-        
-        <div 
+
+        <div
           className="glass-card-premium h-20 rounded-t-[2.5rem] rounded-b-none flex items-center justify-around px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] border-t border-white/10 relative overflow-hidden backdrop-blur-3xl"
           style={{
             background: 'rgba(20, 18, 17, 0.95)',
@@ -153,59 +159,61 @@ const Navigation = () => {
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
-        {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
-          const badgeCount = item.path === '/matches' ? (notifications?.total || 0) : 0;
-          const showBadge = badgeCount > 0;
+          {navItems.map((item) => {
+            const isActive = location.pathname.startsWith(item.path);
+            const badgeCount =
+              item.path === '/matches' ? (notifications?.total || 0) :
+              item.path === '/pulse' ? (notifications?.pulse || 0) : 0;
+            const showBadge = badgeCount > 0;
 
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className="flex-1 flex flex-col items-center justify-center h-full gap-1.5 relative group"
-            >
-              <div className={`relative transition-all duration-500 mb-1 ${isActive ? 'scale-110' : 'opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100'}`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-white/10 shadow-lg' : ''}`}>
-                  {item.label === 'Profile' && user?.profile_photo_url ? (
-                    <img 
-                      src={user.profile_photo_url} 
-                      alt="" 
-                      className={`w-7 h-7 rounded-full object-cover border-2 ${isActive ? 'border-brand-500' : 'border-white/20 opacity-60'}`} 
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex-1 flex flex-col items-center justify-center h-full gap-1.5 relative group"
+              >
+                <div className={`relative transition-all duration-500 mb-1 ${isActive ? 'scale-110' : 'opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-white/10 shadow-lg' : ''}`}>
+                    {item.label === 'Profile' && user?.profile_photo_url ? (
+                      <img
+                        src={user.profile_photo_url}
+                        alt=""
+                        className={`w-7 h-7 rounded-full object-cover border-2 ${isActive ? 'border-brand-500' : 'border-white/20 opacity-60'}`}
+                      />
+                    ) : (
+                      <span className="text-2xl drop-shadow-md">{item.emoji}</span>
+                    )}
+                  </div>
+
+                  {showBadge && (
+                    <div className="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 rounded-full border-2 border-dark-950 bg-brand-500 text-white text-[9px] font-bold flex items-center justify-center shadow-lg">
+                      {badgeCount > 9 ? '9+' : badgeCount}
+                    </div>
+                  )}
+
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-dot"
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-dark-950 shadow-lg"
+                      style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
                     />
-                  ) : (
-                    <span className="text-2xl drop-shadow-md">{item.emoji}</span>
                   )}
                 </div>
 
-                {showBadge && (
-                  <div className="absolute -top-1 -right-1 min-w-[18px] h-5 px-1 rounded-full border-2 border-dark-950 bg-brand-500 text-white text-[9px] font-bold flex items-center justify-center shadow-lg">
-                    {badgeCount > 9 ? '9+' : badgeCount}
-                  </div>
-                )}
+                <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors duration-300 ${isActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-200'}`}>
+                  {item.label}
+                </span>
 
                 {isActive && (
                   <motion.div
-                    layoutId="nav-dot"
-                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-dark-950 shadow-lg"
+                    layoutId="nav-glow"
+                    className="absolute inset-x-1 inset-y-2 rounded-2xl -z-10 blur-xl opacity-20"
                     style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
                   />
                 )}
-              </div>
-
-              <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors duration-300 ${isActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-200'}`}>
-                {item.label}
-              </span>
-
-              {isActive && (
-                <motion.div
-                  layoutId="nav-glow"
-                  className="absolute inset-x-1 inset-y-2 rounded-2xl -z-10 blur-xl opacity-20"
-                  style={{ background: 'linear-gradient(135deg, #f43f5e, #f59e0b)' }}
-                />
-              )}
-            </Link>
-          );
-        })}
+              </Link>
+            );
+          })}
         </div>
       </nav>
     </>

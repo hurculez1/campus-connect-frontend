@@ -1,168 +1,176 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
-import ImageModal from '../components/ImageModal';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
 
-// ─── SwipeCard — custom drag-based swipe ────────
-const SwipeCard = ({ onSwipe, mode, children }) => {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotate = useTransform(x, [-300, 0, 300], [-28, 0, 28]);
-  const likeOpacity = useTransform(x, [20, 120], [0, 1]);
-  const nopeOpacity = useTransform(x, [-120, -20], [1, 0]);
-
-  const isDating = mode === 'dating';
-
-  const handleDragEnd = useCallback((_, info) => {
-    const { offset, velocity } = info;
-    const swipeThreshold = 80;
-    const velocityThreshold = 500;
-
-    if (offset.x > swipeThreshold || (velocity.x > velocityThreshold && offset.x > 20)) {
-      onSwipe('right');
-    } else if (offset.x < -swipeThreshold || (velocity.x < -velocityThreshold && offset.x < -20)) {
-      onSwipe('left');
-    }
-  }, [onSwipe]);
-
+// ─── Heart Burst Animation ──────────────────────────────────────────────────
+export const HeartBurst = ({ onDone }) => {
   return (
     <motion.div
-      style={{ x, y: 0, rotate, position: 'absolute', inset: 0, zIndex: 20, cursor: 'grab' }}
-      drag="x" // Horizontal drag only
-      dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
-      dragElastic={0.8}
-      onDragEnd={handleDragEnd}
-      whileTap={{ cursor: 'grabbing' }}
+      className="absolute inset-0 flex items-center justify-center pointer-events-none z-50"
+      initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.8 }}
+      onAnimationComplete={onDone}
     >
-      <motion.div 
-        style={{ opacity: likeOpacity }} 
-        className="absolute top-4 right-4 z-50 py-1 px-4 border-2 border-green-500 text-green-500 font-black text-2xl rounded-lg rotate-12 bg-black/40 backdrop-blur-md pointer-events-none"
-      >
-        {isDating ? 'LIKE ❤️' : 'STUDY 📚'}
-      </motion.div>
-      <motion.div 
-        style={{ opacity: nopeOpacity }} 
-        className="absolute top-4 left-4 z-50 py-1 px-4 border-2 border-red-500 text-red-500 font-black text-2xl rounded-lg -rotate-12 bg-black/40 backdrop-blur-md pointer-events-none"
-      >
-        NOPE
-      </motion.div>
-      {children}
+      {[...Array(8)].map((_, i) => (
+        <motion.div key={i} className="absolute text-2xl"
+          initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+          animate={{
+            scale: [0, 1.4, 0],
+            x: Math.cos((i / 8) * 2 * Math.PI) * 60,
+            y: Math.sin((i / 8) * 2 * Math.PI) * 60,
+            opacity: [1, 1, 0]
+          }}
+          transition={{ duration: 0.65, ease: 'easeOut' }}
+        >❤️</motion.div>
+      ))}
+      <motion.div initial={{ scale: 0 }} animate={{ scale: [0, 2, 1.5] }} transition={{ duration: 0.4 }} className="text-5xl">❤️</motion.div>
     </motion.div>
   );
 };
 
-// ─── Profile Detail Modal ──────────────────────────────────────────────────
-const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
-  const isDating = mode === 'dating';
-  const age = user.date_of_birth
-    ? Math.floor((new Date() - new Date(user.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+// ─── Professional Profile Detail Sheet ──────────────────────────────────────────
+export const ProfileSheet = ({ profile, isDating, isLiked, onLike, onClose, onChat }) => {
+  const [sending, setSending] = useState(false);
+  const age = profile.date_of_birth
+    ? Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 3600e3))
     : null;
 
+  let interests = [];
+  try { interests = typeof profile.interests === 'string' ? JSON.parse(profile.interests) : (profile.interests || []); }
+  catch { interests = []; }
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] bg-dark-950 flex items-center justify-center"
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-2xl flex items-end justify-center sm:items-center sm:p-4"
       onClick={onClose}
     >
       <motion.div
-        initial={{ y: 50, scale: 0.95 }}
-        animate={{ y: 0, scale: 1 }}
-        exit={{ y: 50, scale: 0.95 }}
-        className="w-full h-full max-w-2xl bg-dark-900 overflow-hidden flex flex-col"
+        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 32, stiffness: 350 }}
+        className="w-full max-w-4xl bg-dark-950/90 border-t border-white/10 sm:border border-white/10 sm:rounded-[2.5rem] rounded-t-[2.5rem] overflow-hidden flex flex-col sm:flex-row h-[90vh] sm:h-[75vh] shadow-2xl relative"
         onClick={e => e.stopPropagation()}
       >
-        {/* Photo Header */}
-        <div className="relative h-[45vh] flex-shrink-0">
+        {/* Left Side: Photo (Desktop) / Top Area (Mobile) */}
+        <div className="relative w-full sm:w-[45%] h-96 sm:h-full flex-shrink-0 group">
           <img 
-            src={user.profile_photo_url} 
-            alt={user.first_name} 
-            className="w-full h-full object-cover cursor-zoom-in" 
-            onClick={() => onAction?.('fullscreen', user.profile_photo_url)}
+            src={profile.profile_photo_url || `https://ui-avatars.com/api/?name=${profile.first_name}&background=1a1a2e&color=fff`}
+            alt="" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent pointer-events-none" />
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/20 hover:bg-black/70 transition-colors">
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-dark-950 via-dark-950/40 to-transparent" />
+          
+          <button onClick={onClose}
+            className="absolute top-6 left-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-base transition-all active:scale-90 hover:bg-black/60 z-20">
             ✕
           </button>
+
+          <div className="absolute bottom-6 left-8 right-8 z-10">
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-black text-white tracking-tighter drop-shadow-lg">
+                {profile.first_name}
+              </h2>
+              {profile.verification_status === 'verified' && <span className="text-blue-400 text-xl">✅</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {age && (
+                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md text-white`}>
+                  🎂 {age} Years
+                </span>
+              )}
+              <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md ${isDating ? 'text-rose-400' : 'text-indigo-400'}`}>
+                📍 {profile.university || 'University'}
+              </span>
+              {profile.subscription_tier === 'vip' && (
+                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-md bg-gradient-to-r from-amber-400 to-orange-500 text-dark-950 shadow-lg shadow-amber-500/20">
+                  VIP
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 pb-24">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-3xl font-black text-white tracking-tighter">{user.first_name}, {age}</h2>
-              <p className={`font-black text-[10px] uppercase tracking-widest ${isDating ? 'text-brand-400' : 'text-indigo-400'}`}>
-                📍 {user.university}
-              </p>
-            </div>
-            {user.verification_status === 'verified' && (
-              <div className="badge-verified">✓ Verified</div>
-            )}
-          </div>
-
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Academic Vibe</h3>
-              <div className="flex gap-4">
-                <div className="bg-white/5 rounded-2xl p-4 flex-1 border border-white/5">
-                  <p className="text-dark-500 text-[9px] font-black uppercase tracking-widest mb-1">Course</p>
-                  <p className="text-white text-sm font-bold truncate">{user.course || 'Deciding...'}</p>
-                </div>
-                <div className="bg-white/5 rounded-2xl p-4 flex-1 border border-white/5">
-                  <p className="text-dark-500 text-[9px] font-black uppercase tracking-widest mb-1">Year</p>
-                  <p className="text-white text-sm font-bold">{user.year_of_study || 'N/A'}</p>
-                </div>
+        {/* Right Side: Scrollable Details */}
+        <div className="flex-1 flex flex-col min-h-0 bg-dark-950/40">
+           <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8 custom-scrollbar">
+            {/* Quick Info Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/[0.03] p-4 rounded-3xl border border-white/[0.05] shadow-inner">
+                <p className="text-white/30 text-[8px] font-black uppercase tracking-widest mb-1">Academic Progress</p>
+                <p className="text-white text-xs font-bold">{profile.year_of_study ? `Year ${profile.year_of_study}` : 'N/A Student'}</p>
+              </div>
+              <div className="bg-white/[0.03] p-4 rounded-3xl border border-white/[0.05] shadow-inner">
+                <p className="text-white/30 text-[8px] font-black uppercase tracking-widest mb-1">Study Field</p>
+                <p className="text-white text-xs font-bold truncate">{profile.course || 'Global Scholar'}</p>
               </div>
             </div>
 
-            {user.bio && (
-              <div>
-                <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">About Me</h3>
-                <p className="text-dark-200 text-sm leading-relaxed font-medium bg-white/5 p-4 rounded-2xl border border-white/5">
-                  {user.bio}
+            {/* Bio Section */}
+            <div className="space-y-3">
+              <h3 className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] px-1">The Vibe</h3>
+              <div className="bg-white/[0.02] p-6 rounded-[2rem] border border-white/[0.03] shadow-inner">
+                <p className="text-white/90 text-base leading-relaxed font-bold italic tracking-tight">
+                  "{profile.bio || "Searching for the right words to describe my campus energy..."}"
                 </p>
               </div>
-            )}
+            </div>
 
-            {user.interests && user.interests.length > 0 && (
-              <div>
-                <h3 className="text-dark-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">Interests</h3>
+            {/* Interests Section */}
+            {interests.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-white/40 text-[9px] font-black uppercase tracking-[0.2em] px-1">DNA & Interests</h3>
                 <div className="flex flex-wrap gap-2">
-                  {(Array.isArray(user.interests) ? user.interests : []).map(tag => (
-                    <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold">
-                      {tag}
+                  {interests.map(tag => (
+                    <span key={tag} className="py-2 px-4 rounded-xl bg-white/5 border border-white/5 text-white/80 text-[10px] font-black hover:bg-white/10 transition-all">
+                      #{tag.toUpperCase()}
                     </span>
                   ))}
                 </div>
               </div>
             )}
+            
+            {/* Action Bar spacer */}
+            <div className="h-24 sm:h-8" />
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent">
-          <div className="flex gap-3">
-            <button
-              onClick={async () => {
-                try {
-                  const res = await api.post('/chat/connection/start', { targetUserId: user.id });
-                  onClose();
-                  if (res.data.matchId) {
-                    onAction?.('navigate', `/chat/${res.data.matchId}`);
-                  } else if (res.data.connectionId) {
-                    onAction?.('navigate', `/connection/${res.data.connectionId}`);
-                  }
-                } catch { onConnect(user.id); onClose(); }
-              }}
-              className={`flex-1 py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-2xl transition-all active:scale-95 ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}
+          {/* Action Bar - Fixed at bottom of the info panel */}
+          <div className="p-6 border-t border-white/5 bg-dark-900/80 backdrop-blur-xl flex gap-3 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onLike(profile)}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-all shadow-xl ${
+                isLiked 
+                  ? 'bg-green-500 text-white shadow-green-500/10 border border-green-400' 
+                  : 'bg-white/5 text-white border border-white/10 hover:bg-rose-500/20'
+              }`}
             >
-              💬 Send Message
-            </button>
+              {isLiked ? '❤️' : '🤍'}
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={async () => { 
+                if (sending) return;
+                setSending(true); 
+                const targetId = profile.id || profile.userId;
+                if (!targetId) { toast.error('User ID missing'); setSending(false); return; }
+                await onChat(profile); 
+                setSending(false); 
+              }}
+              disabled={sending}
+              className={`flex-1 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl flex items-center justify-center gap-3 ${
+                isDating 
+                  ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white' 
+                  : 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white'
+              } disabled:opacity-60 border border-white/10`}
+            >
+              <span className="text-lg">{sending ? '⏳' : '💬'}</span>
+              <span>{sending ? 'Loading...' : 'Start Chat'}</span>
+            </motion.button>
           </div>
         </div>
       </motion.div>
@@ -170,508 +178,389 @@ const ProfileDetailModal = ({ user, mode, onClose, onConnect, onAction }) => {
   );
 };
 
-// ─── Match Celebration Overlay ─────────────────────────────────────────────
-const MatchCelebration = ({ match, mode, onClose, onMessage }) => {
-  const isDating = mode === 'dating';
-
-  return (
-    <AnimatePresence>
-      {match && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="match-pop"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.5, rotate: -10 }}
-            animate={{ scale: 1, rotate: 0 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', damping: 12 }}
-            className={`text-center px-10 py-16 relative glass-card-premium max-w-sm mx-4 ${isDating ? 'border-brand-500/40' : 'border-indigo-500/40'}`}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Confetti */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {Array.from({ length: 25 }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ y: -20, x: Math.random() * 400 - 200, opacity: 1 }}
-                  animate={{ y: 600, opacity: 0, rotate: Math.random() * 720 }}
-                  transition={{ duration: 2.5 + Math.random(), delay: Math.random() * 0.5 }}
-                  className="absolute w-2 h-4 rounded-full top-0 left-1/2"
-                  style={{
-                    background: isDating
-                      ? ['#f43f5e', '#f59e0b', '#fb7185'][Math.floor(Math.random() * 3)]
-                      : ['#6366f1', '#a855f7', '#818cf8'][Math.floor(Math.random() * 3)],
-                  }}
-                />
-              ))}
-            </div>
-
-            <motion.div
-              animate={{ scale: [1, 1.2, 1], rotate: [0, -10, 10, 0] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="text-9xl mb-6 drop-shadow-2xl"
-            >
-              {isDating ? '❤️' : '⚡'}
-            </motion.div>
-
-            <h2 className="text-4xl font-black text-white mb-3 tracking-tighter">
-              {isDating ? "It's a Match!" : "Study Buddy Found!"}
-            </h2>
-            <p className="text-dark-300 text-lg mb-10 font-medium">
-              {isDating
-                ? <>You and <span className="text-brand-400 font-black">{match?.firstName}</span> liked each other!</>
-                : <>You and <span className="text-indigo-400 font-black">{match?.firstName}</span> share the same vibe!</>}
-            </p>
-
-            <div className="flex flex-col gap-3">
-              <button onClick={onMessage} className={isDating ? 'btn-premium-v2 w-full py-4 uppercase font-black text-sm tracking-widest' : 'btn-study w-full py-4 uppercase font-black text-sm tracking-widest'}>
-                💬 Send Message
-              </button>
-              <button onClick={onClose} className="text-dark-400 text-xs font-black uppercase tracking-widest mt-2 hover:text-white transition-colors">
-                Keep Exploring
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-// ─── Swipe Hint / Gestures ──────────────────────────────────────────────────
-const SwipeHint = ({ isDating }) => {
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      className="absolute inset-0 z-[100] flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-[2px]"
-    >
-      <div className="relative w-full h-full">
-         {/* Hint Icons */}
-         <motion.div 
-            animate={{ x: [0, 80, 0, -80, 0], opacity: [0, 1, 1, 1, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center"
-         >
-            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-xl border border-white/40 flex items-center justify-center text-4xl shadow-2xl">
-              👆
-            </div>
-         </motion.div>
-         
-         <div className="absolute top-1/2 left-[15%] -translate-y-1/2 flex flex-col items-center">
-            <div className="w-14 h-14 rounded-full bg-red-500/80 flex items-center justify-center text-white text-2xl shadow-lg mb-2">✕</div>
-            <p className="text-white text-[10px] font-black uppercase tracking-widest">Swipe Left to Pass</p>
-         </div>
-         
-         <div className="absolute top-1/2 right-[15%] -translate-y-1/2 flex flex-col items-center">
-            <div className={`w-14 h-14 rounded-full ${isDating ? 'bg-brand-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-2xl shadow-lg mb-2`}>❤️</div>
-            <p className="text-white text-[10px] font-black uppercase tracking-widest">Swipe Right to {isDating ? 'Like' : 'Connect'}</p>
-         </div>
-
-         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 text-center">
-            <p className="text-white font-black text-xs uppercase tracking-[0.2em] animate-pulse">Tap anywhere to start</p>
-         </div>
-      </div>
-    </motion.div>
-  );
-};
-const ProfileCard = ({ profile, mode, onTap }) => {
-  const [photoIdx, setPhotoIdx] = useState(0);
-  const isDating = mode === 'dating';
+// ─── Single Full-Screen Card ──────────────────────────────────────────────────
+const DiscoverCard = ({ profile, isDating, isLiked, onLike, onChat, onTap }) => {
+  const [imgError, setImgError] = useState(false);
+  const [burst, setBurst] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
 
   const age = profile.date_of_birth
-    ? Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+    ? Math.floor((new Date() - new Date(profile.date_of_birth)) / (365.25 * 24 * 3600e3))
     : null;
-  let parsedInterests = [];
-  try {
-    parsedInterests = profile.interests ? (typeof profile.interests === 'string' ? JSON.parse(profile.interests) : profile.interests) : [];
-  } catch (e) {
-    parsedInterests = [];
-  }
-  const interests = Array.isArray(parsedInterests) ? parsedInterests : [];
-  let parsedPhotos = [];
-  try {
-    const rawPhotos = typeof profile.photos === 'string' ? JSON.parse(profile.photos) : profile.photos;
-    parsedPhotos = Array.isArray(rawPhotos) ? rawPhotos : [];
-  } catch (e) {
-    parsedPhotos = [];
-  }
-  const photos = [profile.profile_photo_url, ...parsedPhotos].filter(Boolean);
-  const navigate = useNavigate();
 
-  const handleGoToChat = async (e) => {
+  let interests = [];
+  try { interests = typeof profile.interests === 'string' ? JSON.parse(profile.interests) : (profile.interests || []); }
+  catch { interests = []; }
+
+  const handleLike = (e) => {
     e.stopPropagation();
-    try {
-      const res = await api.post('/chat/connection/start', { targetUserId: profile.id });
-      if (res.data.matchId) {
-        navigate(`/chat/${res.data.matchId}`);
-      } else if (res.data.connectionId) {
-        navigate(`/connection/${res.data.connectionId}`);
-      } else {
-        toast.error('Could not open chat');
-      }
-    } catch (err) {
-      console.error('Chat from Discover failed:', err);
-      toast.error('Could not open chat. Try again.');
-    }
+    if (!isLiked) setBurst(true);
+    onLike(profile);
   };
 
+  const handleChat = async (e) => {
+    e.stopPropagation();
+    if (chatLoading) return;
+    setChatLoading(true);
+    await onChat(profile);
+    setChatLoading(false);
+  };
+
+  const photoSrc = (!imgError && profile.profile_photo_url)
+    ? profile.profile_photo_url
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.first_name)}&size=600&background=1e1b2e&color=ffffff&bold=true`;
+
   return (
-    <div 
-      onClick={onTap}
-      className={`swipe-card border-white/5 shadow-2xl overflow-hidden rounded-[2rem] bg-dark-900 group w-full h-full cursor-pointer active:scale-[0.98] transition-transform`}
-    >
-      <div className="relative h-full w-full">
-        {/* Photo tap zones */}
-        {photos.length > 1 && (
-          <div className="absolute inset-x-0 top-0 bottom-20 z-20 flex">
-            <button onClick={e => { e.stopPropagation(); setPhotoIdx(i => Math.max(0, i - 1)); }} className="flex-1 cursor-w-resize" />
-            <button onClick={e => { e.stopPropagation(); setPhotoIdx(i => Math.min(photos.length - 1, i + 1)); }} className="flex-1 cursor-e-resize" />
-          </div>
+    <div className="relative w-full h-full overflow-hidden bg-dark-950" onClick={() => onTap(profile)}>
+      {/* Full-bleed photo */}
+      <img src={photoSrc} onError={() => setImgError(true)} alt={profile.first_name}
+        className="absolute inset-0 w-full h-full object-cover" draggable={false} />
+
+      {/* Rich gradient — bottom-heavy for info readability */}
+      <div className="absolute inset-x-0 bottom-0 h-[60%] z-[5]" 
+        style={{ background: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.4) 45%, transparent 100%)' }} />
+
+      {/* Heart burst on like */}
+      {burst && <HeartBurst onDone={() => setBurst(false)} />}
+
+      {/* Top badges */}
+      <div className="absolute top-4 left-4 flex gap-1.5 z-10">
+        {profile.verification_status === 'verified' && (
+          <span className="text-[9px] font-black bg-blue-500/90 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/20 shadow-lg shadow-blue-500/20">VALIFIED</span>
         )}
-
-        {/* Photo with dynamic border shadow */}
-        <AnimatePresence mode="wait">
-          <motion.div key={photoIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 transition-all duration-700">
-            {photos[photoIdx] ? (
-              <img src={photos[photoIdx]} alt={profile.first_name} className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 scale-100 group-hover:scale-105" draggable={false} />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-8xl"
-                style={{ background: isDating ? 'linear-gradient(135deg, #1a1614, #f43f5e10)' : 'linear-gradient(135deg, #0d0b0a, #6366f110)' }}>
-                {profile.gender === 'female' ? '👨🏾' : '👩🏾'}
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Photo indicators */}
-        {photos.length > 1 && (
-          <div className="absolute top-3 left-3 right-3 z-30 flex gap-1.5">
-            {photos.map((_, i) => (
-              <div key={i} className={`h-1 flex-1 rounded-full bg-white/20 overflow-hidden`}>
-                <div className={`h-full transition-all duration-300 ${i === photoIdx ? 'w-full bg-white' : 'w-0'}`} />
-              </div>
-            ))}
-          </div>
+        {profile.subscription_tier === 'vip' && (
+          <span className="text-[10px] font-black bg-gradient-to-r from-amber-400 to-orange-500 text-dark-950 px-2.5 py-1 rounded-md shadow-lg shadow-amber-500/20 uppercase tracking-widest">VIP</span>
         )}
+      </div>
 
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-dark-950 via-dark-950/20 to-transparent pointer-events-none" />
-
-        {/* Dynamic Badges */}
-        <div className="absolute top-6 right-5 z-30 flex flex-col gap-1.5 scale-90 origin-right">
-          {profile.verification_status === 'verified' && (
-            <div className="badge-verified shadow-lg">✓ Verified</div>
-          )}
-          {profile.subscription_tier === 'vip' && (
-            <div className="badge-vip shadow-lg">👑 VIP</div>
-          )}
-          {!isDating && (
-            <div className="py-1 px-3 rounded-full bg-indigo-500/90 text-white font-black text-[9px] uppercase tracking-widest shadow-lg backdrop-blur-md">📚 STUDY BUDDY</div>
-          )}
-        </div>
-
-        {/* Info Section */}
-        <div className="absolute bottom-0 inset-x-0 p-6 lg:p-8 z-10 transition-transform duration-500 group-hover:translate-y-[-5px]">
-          <div className="flex items-baseline gap-2 mb-1">
-            <h3 className="text-white font-black text-3xl tracking-tighter">{profile.first_name}</h3>
+      {/* Right-side action column (TikTok-style) */}
+      <div
+        className="absolute right-4 bottom-32 flex flex-col items-center gap-5 z-20"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Like */}
+        <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
+          className="flex flex-col items-center gap-1.5">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)] border transition-all duration-300 ${
+            isLiked
+              ? 'bg-green-500 border-green-400 shadow-green-500/40'
+              : 'bg-black/40 border-white/20 backdrop-blur-xl hover:bg-rose-500/20'
+          }`}>
+            <span className="text-2xl">{isLiked ? '❤️' : '🤍'}</span>
           </div>
+          <span className="text-white text-[9px] font-black uppercase tracking-widest drop-shadow-lg">Like</span>
+        </motion.button>
 
-          <div className={`flex items-center gap-2 font-black text-[9px] uppercase tracking-[0.2em] mb-3 ${isDating ? 'text-brand-400' : 'text-indigo-400'}`}>
-            <span className="text-xs">📍</span> {profile.university}
+        {/* Chat */}
+        <motion.button whileTap={{ scale: 0.82 }} onClick={handleChat} disabled={chatLoading}
+          className="flex flex-col items-center gap-1.5">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)] border backdrop-blur-xl transition-all duration-300 ${
+            isDating ? 'bg-black/40 border-white/20 hover:bg-rose-500/40' : 'bg-black/40 border-white/20 hover:bg-indigo-500/40'
+          } disabled:opacity-50`}>
+            <span className="text-2xl">{chatLoading ? '⏳' : '💬'}</span>
           </div>
+          <span className="text-white text-[9px] font-black uppercase tracking-widest drop-shadow-lg">Chat</span>
+        </motion.button>
 
-          <div className="flex flex-wrap gap-2 mb-3">
-            {age && (
-              <span className="py-1 px-2.5 rounded-lg bg-white/10 border border-white/10 text-white font-bold text-[9px] uppercase tracking-widest">
-                🎂 Age {age}
-              </span>
-            )}
-            {profile.course && (
-              <span className="py-1 px-2.5 rounded-lg bg-white/5 border border-white/10 text-white/80 text-[9px] font-black uppercase tracking-widest">
-                🎓 {profile.course.length > 20 ? profile.course.slice(0, 20) + '...' : profile.course}
-              </span>
-            )}
-            {isDating && profile.year_of_study && (
-              <span className="py-1 px-2.5 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[9px] font-black uppercase tracking-widest">
-                📅 Year {profile.year_of_study}
-              </span>
-            )}
+        {/* Info (opens profile sheet) */}
+        <motion.button whileTap={{ scale: 0.82 }} onClick={e => { e.stopPropagation(); onTap(profile); }}
+          className="flex flex-col items-center gap-1.5">
+          <div className="w-14 h-14 rounded-full bg-black/40 border border-white/20 backdrop-blur-xl flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)] hover:bg-white/10 transition-all duration-300">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
+          <span className="text-white text-[9px] font-black uppercase tracking-widest drop-shadow-lg">Details</span>
+        </motion.button>
+      </div>
 
-          {interests.length > 0 && (
-            <div className="flex flex-wrap gap-1 opacity-0 lg:group-hover:opacity-100 transition-all duration-500 transform translate-y-4 lg:group-hover:translate-y-0 hidden sm:flex">
-              {interests.slice(0, 4).map((tag, i) => (
-                <span key={tag} className="text-[9px] font-black uppercase tracking-widest text-white/50 border border-white/5 px-2 py-1 rounded-lg">
-                  {tag}
-                </span>
-              ))}
+      {/* Bottom info strip */}
+      <div className="absolute bottom-4 inset-x-0 px-6 pb-14 z-10">
+        {/* Name row */}
+        <div className="flex items-end justify-between mb-3">
+          <div className="flex-1 min-w-0 pr-20">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h2 className="text-white font-black text-3xl tracking-tighter drop-shadow-2xl">
+                {profile.first_name}
+              </h2>
             </div>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              {age && (
+                <span className="text-[9px] font-black bg-white/20 text-white px-2.5 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+                  🎂 {age} YEARS
+                </span>
+              )}
+              <p className={`text-[11px] font-black uppercase tracking-[0.25em] drop-shadow-lg ${isDating ? 'text-rose-400' : 'text-indigo-400'}`}>
+                📍 {profile.university || 'University'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Course + year chips */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {profile.course && (
+            <span className="py-1.5 px-3 rounded-2xl bg-white/10 border border-white/10 text-white text-[11px] font-black backdrop-blur-md shadow-lg">
+              🎓 {profile.course}
+            </span>
+          )}
+          {profile.year_of_study && (
+            <span className="py-1.5 px-3 rounded-2xl bg-white/10 border border-white/10 text-white/80 text-[11px] font-black backdrop-blur-md shadow-lg">
+              Year {profile.year_of_study}
+            </span>
           )}
         </div>
 
-        {/* Floating Chat Button to Inbox */}
-        <button 
-          onClick={handleGoToChat}
-          onPointerDown={(e) => e.stopPropagation()} 
-          className={`absolute bottom-5 right-5 z-50 w-11 h-11 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-110 active:scale-95 border ${isDating ? 'bg-brand-500 shadow-brand-500/30 border-brand-400' : 'bg-indigo-500 shadow-indigo-500/30 border-indigo-400'}`}
-          aria-label="Go to Inbox"
-        >
-          <span className="text-lg">💬</span>
-        </button>
+        {/* Bio snippet */}
+        {profile.bio && (
+          <p className="text-white/80 text-base leading-snug line-clamp-2 pr-20 drop-shadow-md font-bold italic">
+            "{profile.bio}"
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-// ─── Discover Page ──────────────────────────────────────────────────────────
+// ─── Empty / Loading state ────────────────────────────────────────────────────
+const DiscoverEmpty = ({ isDating, refetch }) => (
+  <div className="flex flex-col items-center justify-center h-full gap-8 px-8 bg-[#0a0a0f] text-center">
+    <motion.div 
+      animate={{ 
+        scale: [1, 1.1, 1],
+        rotate: [0, 5, -5, 0]
+      }} 
+      transition={{ repeat: Infinity, duration: 4 }} 
+      className="text-8xl filter drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+    >
+      🕵️‍♂️
+    </motion.div>
+    <div className="max-w-xs">
+      <h2 className="text-white font-black text-3xl tracking-tighter mb-3">Finding New Faces</h2>
+      <p className="text-white/40 text-base font-medium leading-relaxed">We're scanning the campus for you. No one new right now, but we'll recycle everyone in a second!</p>
+    </div>
+    <button onClick={refetch}
+      className={`group relative px-10 py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest active:scale-95 transition-all overflow-hidden ${
+        isDating ? 'bg-rose-500 shadow-rose-500/20' : 'bg-indigo-500 shadow-indigo-500/20'
+      } shadow-2xl text-white`}>
+      <span className="relative z-10 flex items-center gap-3">
+        <span className="text-xl">🔄</span> Refresh Campus
+      </span>
+      <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform" />
+    </button>
+  </div>
+);
+
+// ─── Main Discover Page ────────────────────────────────────────────────────────
 const Discover = () => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { mode } = useAuthStore();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [matchCelebration, setMatchCelebration] = useState(null);
+  const queryClient = useQueryClient();
+  const scrollContainerRef = useRef(null);
+
+  const [matchAlert, setMatchAlert] = useState(null);
   const [selectedProfile, setSelectedProfile] = useState(null);
-  const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [lastDirection, setLastDirection] = useState(null);
-  const [history, setHistory] = useState([]); // Track swipe history
-  const typingTimeoutRef = useRef(null);
 
   const isDating = mode === 'dating';
 
-  const { data: potentialMatches, isLoading, refetch } = useQuery(
+  // Fetch already liked IDs
+  const { data: likedUserIds = [] } = useQuery(
+    ['likedUserIds'],
+    () => api.get('/matches/liked-ids').then(r => r.data.ids || []),
+    { staleTime: Infinity } // Keep until invalidated
+  );
+
+  const likedIds = new Set(likedUserIds);
+
+  // Handle keyboard navigation (ArrowUp / ArrowDown)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (selectedProfile) return;
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const cardHeight = container.clientHeight;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        container.scrollBy({ top: cardHeight, behavior: 'smooth' });
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        container.scrollBy({ top: -cardHeight, behavior: 'smooth' });
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProfile]);
+
+  const { data, isLoading, refetch } = useQuery(
     ['potentialMatches', mode],
-    () => api.get(`/users/discover?mode=${mode}`).then(res => res.data),
+    () => api.get(`/users/discover?mode=${mode}&limit=50`).then(r => r.data),
     { staleTime: 60000, retry: false }
   );
 
+  const hardRefresh = () => {
+    queryClient.removeQueries(['potentialMatches', mode]);
+    queryClient.invalidateQueries(['likedUserIds']);
+    refetch();
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const swipeMutation = useMutation(
-    (data) => api.post('/matches/swipe', data),
+    (payload) => api.post('/matches/swipe', payload),
     {
-      onSuccess: (res, variables) => {
+      onSuccess: (res, vars) => {
         if (res.data.isMatch && res.data.matchedUser) {
-          setMatchCelebration(res.data.matchedUser);
+          queryClient.invalidateQueries('matches');
+          setMatchAlert({ ...res.data.matchedUser, _ts: Date.now() });
+          setTimeout(() => setMatchAlert(null), 7000);
         }
+        // Invalidate liked IDs so it persists
+        queryClient.invalidateQueries(['likedUserIds']);
       },
+      onError: () => {},
     }
   );
 
-  const matches = potentialMatches?.matches || [];
-  const swipeLimit = potentialMatches?.swipeLimit;
-  const currentMatch = matches[currentIndex];
 
-  const handleBack = () => {
-    if (currentIndex > 0 && history.length > 0) {
-      setCurrentIndex(prev => prev - 1);
-      setHistory(prev => prev.slice(0, -1));
-    }
-  };
+  const handleLike = useCallback((profile) => {
+    if (likedIds.has(profile.id)) return;
+    swipeMutation.mutate({ targetUserId: profile.id, direction: 'like' });
+  }, [likedIds, swipeMutation]);
 
-  const onSwipe = useCallback((direction, profile) => {
-    const swipeMap = { right: 'like', left: 'pass', up: 'super_like' };
-    const dir = swipeMap[direction] || direction;
-    setLastDirection(direction);
-    
-    // Add to history BEFORE incrementing index
-    setHistory(prev => [...prev, { profile, direction }]);
-    
-    swipeMutation.mutate({ targetUserId: profile.id, direction: dir });
-    setCurrentIndex(prev => prev + 1);
-  }, [swipeMutation]);
-
-  const programmaticSwipe = (dir) => {
-    if (!currentMatch) return;
-    onSwipe(dir, currentMatch);
-  };
-
-  const handleDirectMatch = async (userId) => {
-    if (!userId) return;
+  const handleChat = useCallback(async (profile) => {
     try {
-      const res = await api.post('/matches/request', { targetUserId: userId });
-      if (res.data.success) {
-        toast.success('Match request sent!');
+      const targetUserId = profile.id || profile.userId;
+      if (!targetUserId) {
+        toast.error('User information incomplete');
+        return;
       }
+      const res = await api.post('/chat/connection/start', { targetUserId });
+      if (res.data.matchId) navigate(`/chat/${res.data.matchId}`);
+      else if (res.data.connectionId) navigate(`/connection/${res.data.connectionId}`);
+      else toast.error('Could not open chat');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send match request');
+      console.error('Chat error:', err);
+      toast.error('Could not open chat. Try again.');
     }
-  };
+  }, [navigate]);
 
-  // Keyboard Listeners
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (matchCelebration) return;
-      if (e.key === 'ArrowLeft') programmaticSwipe('left');
-      if (e.key === 'ArrowRight') programmaticSwipe('right');
-      if (e.key === 'ArrowUp') programmaticSwipe('up');
-      if (e.key === 'Backspace' || (e.key === 'z' && (e.ctrlKey || e.metaKey))) handleBack();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentMatch, matchCelebration, history]);
+  const matches = data?.matches || [];
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-[480px] gap-6">
-        <div className={`w-14 h-14 rounded-2xl animate-spin shadow-2xl ${isDating ? 'shadow-brand-500/20' : 'shadow-indigo-500/20'}`}
-          style={{ border: '3px solid rgba(255,255,255,0.05)', borderTopColor: isDating ? '#f43f5e' : '#6366f1' }} />
-        <p className="text-dark-400 text-[9px] font-black uppercase tracking-[0.3em] animate-pulse">Scanning Campus...</p>
-      </div>
-    );
-  }
-
-  if (swipeLimit?.remaining === 0) {
-    return (
-      <div className="max-w-sm mx-auto flex flex-col items-center justify-center h-[500px] text-center px-10 glass-card-premium border-white/5 shadow-2xl">
-        <div className={`w-20 h-20 rounded-[1.5rem] mb-6 flex items-center justify-center text-3xl shadow-2xl ${isDating ? 'bg-brand-500 shadow-brand-500/30' : 'bg-indigo-500 shadow-indigo-500/30'}`}>⏰</div>
-        <h2 className="text-2xl font-black text-white mb-3 tracking-tighter">Swipe Limit Reached</h2>
-        <p className="text-dark-400 mb-8 text-xs font-medium leading-relaxed">You've found some great people today! Come back tomorrow or upgrade for unlimited discovery.</p>
-        <button onClick={() => navigate('/subscription')} className={isDating ? 'btn-premium-v2 w-full py-4 text-xs' : 'btn-study w-full py-4 text-xs'}>✨ Unlock Unlimited</button>
-      </div>
-    );
-  }
-
-  if (currentIndex >= matches.length && matches.length > 0) {
-    return (
-      <div className="max-w-sm mx-auto flex flex-col items-center justify-center h-[500px] text-center px-10 glass-card-premium border-white/5 shadow-2xl">
-        <div className="text-6xl mb-6 animate-bounce">🌟</div>
-        <h2 className="text-2xl font-black text-white mb-3 tracking-tighter">All Caught Up!</h2>
-        <p className="text-dark-400 mb-8 text-xs font-medium leading-relaxed">You've seen all the students in your area for now.</p>
-        <div className="flex flex-col w-full gap-3">
-          <button onClick={() => { setCurrentIndex(0); setHistory([]); refetch(); }} className={isDating ? 'btn-premium-v2 py-4 text-xs' : 'btn-study py-4 text-xs'}>🔄 Scan Again</button>
-          <button onClick={handleBack} className="text-dark-400 text-[10px] font-black uppercase tracking-widest mt-1 hover:text-white transition-colors">Go Back to Last Profile</button>
-          <button onClick={() => navigate('/matches')} className="text-dark-400 text-[10px] font-black uppercase tracking-widest mt-3 hover:text-white transition-colors">💬 Your Matches</button>
+      <div className="flex flex-col items-center justify-center gap-6 h-full bg-[#0a0a0f]">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-[2rem] animate-spin"
+            style={{ 
+              border: '4px solid rgba(255,255,255,0.05)', 
+              borderTopColor: isDating ? '#f43f5e' : '#6366f1',
+              boxShadow: isDating ? '0 0 40px rgba(244,63,94,0.1)' : '0 0 40px rgba(99,102,241,0.1)'
+            }} 
+          />
+          <div className="absolute inset-0 flex items-center justify-center text-2xl">📡</div>
+        </div>
+        <div className="text-center">
+          <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">Scanning Campus</p>
+          <p className="text-white/20 text-[8px] font-bold mt-2">Connecting to local vibes...</p>
         </div>
       </div>
     );
   }
+
+  // Exact height calculation for the TikTok scroll area
+  // We subtract Header (approx 64px) and Nav (approx 84px)
+  // Using a more robust calc and ensuring cards don't overlap nav.
+  const availableHeight = 'calc(100dvh - 64px - 80px)';
 
   return (
     <>
+      {/* Match Banner */}
       <AnimatePresence>
-        {selectedProfile && (
-          <ProfileDetailModal 
-            user={selectedProfile} 
-            mode={mode} 
-            onClose={() => setSelectedProfile(null)} 
-            onConnect={() => handleDirectMatch(selectedProfile.id)}
-            onAction={(type, payload) => {
-              if (type === 'navigate') { setSelectedProfile(null); navigate(payload); }
-              if (type === 'fullscreen') { setFullscreenImage(payload); }
-            }}
-          />
+        {matchAlert && (
+          <motion.div
+            key={matchAlert._ts}
+            initial={{ y: -100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -100, opacity: 0 }}
+            className={`fixed top-0 inset-x-0 z-[400] safe-area-top shadow-[0_10px_40px_rgba(0,0,0,0.5)]`}
+          >
+            <div className={`mx-4 mt-4 rounded-[2rem] p-4 flex items-center gap-4 bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl`}>
+              <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-lg border-2 border-white/30">
+                <img src={`https://ui-avatars.com/api/?name=${matchAlert.firstName}&background=random`} alt="" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-black text-sm tracking-tight italic">It's a Match! ✨</p>
+                <p className="text-white/70 text-[11px] font-bold">You & {matchAlert.firstName} vibe!</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setMatchAlert(null);
+                    if (matchAlert.matchId) { navigate(`/chat/${matchAlert.matchId}`); return; }
+                    hardRefresh();
+                  }}
+                  className={`px-5 py-2.5 rounded-2xl text-white text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95 ${
+                    isDating ? 'bg-rose-500 shadow-rose-500/20' : 'bg-indigo-500 shadow-indigo-500/20'
+                  }`}
+                >Chat →</button>
+                <button onClick={() => setMatchAlert(null)} className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors flex items-center justify-center">✕</button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      <MatchCelebration 
-        match={matchCelebration} 
-        mode={mode} 
-        onClose={() => setMatchCelebration(null)} 
-        onMessage={() => { 
-          setMatchCelebration(null); 
-          navigate('/matches'); 
-        }} 
-      />
-
-      {fullscreenImage && <ImageModal imageUrl={fullscreenImage} onClose={() => setFullscreenImage(null)} />}
-
-      <div className="max-w-md lg:max-w-2xl mx-auto px-4 relative flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)]">
-        {/* Progress bar */}
-        {swipeLimit && (
-          <div className="mb-4 flex items-center gap-4 group flex-shrink-0">
-            <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/5 border border-white/5 shadow-inner">
-              <motion.div initial={{ width: 0 }} animate={{ width: `${(swipeLimit.remaining / swipeLimit.limit) * 100}%` }}
-                className={`h-full rounded-full transition-all duration-700 ${isDating ? 'bg-gradient-to-r from-brand-600 to-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.4)]' : 'bg-gradient-to-r from-indigo-600 to-violet-400 shadow-[0_0_10px_rgba(99,102,241,0.4)]'}`} />
+      {/* TikTok-style vertical scroll container */}
+      {matches.length === 0 ? (
+        <div className="h-full w-full flex items-center justify-center">
+          <DiscoverEmpty isDating={isDating} refetch={hardRefresh} />
+        </div>
+      ) : (
+        <div
+          ref={scrollContainerRef}
+          className="w-full overflow-y-auto no-scrollbar"
+          style={{
+            height: availableHeight,
+            scrollSnapType: 'y mandatory',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {matches.map((profile) => (
+            <div
+              key={profile.id}
+              style={{ 
+                scrollSnapAlign: 'start', 
+                scrollSnapStop: 'always',
+                height: availableHeight, 
+                width: '100%',
+                flexShrink: 0 
+              }}
+            >
+              <DiscoverCard
+                profile={profile}
+                isDating={isDating}
+                isLiked={likedIds.has(profile.id)}
+                onLike={handleLike}
+                onChat={handleChat}
+                onTap={setSelectedProfile}
+              />
             </div>
-            <span className="text-dark-400 text-[9px] font-black uppercase tracking-widest whitespace-nowrap group-hover:text-white transition-colors">
-              {swipeLimit.remaining} LEFT
-            </span>
-          </div>
+          ))}
+        </div>
+      )}
+
+      {/* Profile detail sheet */}
+      <AnimatePresence>
+        {selectedProfile && (
+          <ProfileSheet
+            profile={selectedProfile}
+            isDating={isDating}
+            isLiked={likedIds.has(selectedProfile.id)}
+            onLike={(p) => handleLike(p)}
+            onClose={() => setSelectedProfile(null)}
+            onChat={async (p) => { await handleChat(p); }}
+          />
         )}
-
-        {/* Swipe Stack */}
-        <div className="relative perspective-lg w-full flex-1 min-h-0 max-h-[520px] lg:max-h-[600px]">
-          {currentIndex < matches.length && (
-            <>
-              {/* Tap-to-swipe Arrows - Made more visible and larger */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); programmaticSwipe('left'); }}
-                className="absolute left-[-20px] lg:left-[-60px] top-1/2 -translate-y-1/2 z-[61] w-14 h-14 rounded-full bg-black/80 border border-white/20 flex items-center justify-center text-2xl text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.3)] backdrop-blur-xl hover:bg-red-500 hover:text-white transition-all active:scale-75 cursor-pointer"
-                title="Pass"
-              >
-                ✕
-              </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); programmaticSwipe('right'); }}
-                className="absolute right-[-20px] lg:right-[-60px] top-1/2 -translate-y-1/2 z-[61] w-14 h-14 rounded-full bg-black/80 border border-white/20 flex items-center justify-center text-2xl text-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)] backdrop-blur-xl hover:bg-green-500 hover:text-white transition-all active:scale-75 cursor-pointer"
-                title="Like"
-              >
-                ❤️
-              </button>
-
-              {/* Back Button */}
-              {history.length > 0 && (
-                <div className="absolute top-[-40px] right-0 z-50">
-                  <button onClick={handleBack} className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base text-dark-400 hover:bg-white hover:text-black transition-all group active:scale-75">
-                    ↺
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {matches.slice(currentIndex, currentIndex + 3).map((match, stackIdx) => {
-            const isTop = stackIdx === 0;
-            return (
-              <motion.div key={match.id} layout initial={false}
-                style={{ zIndex: isTop ? 20 : 10 - stackIdx, pointerEvents: isTop ? 'auto' : 'none', position: 'absolute', inset: 0 }}
-                animate={{ scale: 1 - stackIdx * 0.05, y: stackIdx * 12, opacity: 1 - stackIdx * 0.3 }}
-                transition={{ duration: 0.4, ease: 'backOut' }}
-              >
-                {isTop ? (
-                  <SwipeCard mode={mode} onSwipe={(dir) => onSwipe(dir, match)}>
-                    <ProfileCard profile={match} mode={mode} onTap={() => setSelectedProfile(match)} />
-                  </SwipeCard>
-                ) : (
-                  <ProfileCard profile={match} mode={mode} />
-                )}
-              </motion.div>
-            );
-          })}
-
-          {/* Tutorial Overlay / Gesture Hint */}
-          {currentIndex === 0 && matches.length > 0 && !localStorage.getItem('swipe_tutorial_v3') && (
-            <div onClick={() => localStorage.setItem('swipe_tutorial_v3', 'true')} className="cursor-pointer">
-              <AnimatePresence>
-                <SwipeHint isDating={isDating} />
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center justify-center gap-6 mt-4 mb-8 z-50 relative">
-          <button onClick={() => programmaticSwipe('left')} className="w-16 h-16 rounded-full flex items-center justify-center bg-dark-800 border-2 border-dark-600 text-red-500 shadow-xl hover:bg-red-500 hover:text-white transition-all duration-300 active:scale-90">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-          <button onClick={() => programmaticSwipe('right')} className={`w-16 h-16 rounded-full flex items-center justify-center bg-dark-800 border-2 ${isDating ? 'border-brand-500 text-brand-500 hover:bg-brand-500' : 'border-indigo-500 text-indigo-500 hover:bg-indigo-500'} shadow-xl hover:text-white transition-all duration-300 active:scale-90`}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-          </button>
-        </div>
-
-        {/* Feedback Overlay */}
-        <AnimatePresence>
-          {lastDirection && (
-            <motion.div key={lastDirection} initial={{ opacity: 1, scale: 0.5 }} animate={{ opacity: 0, scale: 2 }} exit={{ opacity: 0 }} transition={{ duration: 0.6 }}
-              className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-8xl z-50 pointer-events-none drop-shadow-2xl">
-              {lastDirection === 'right' ? (isDating ? '❤️' : '📚') : '👋'}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      </AnimatePresence>
     </>
   );
 };

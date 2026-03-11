@@ -76,8 +76,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
       {!collapsed && (
         <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-xs">
-              {user?.firstName?.[0] || 'A'}
+            <div className="w-7 h-7 rounded-full bg-brand-500/10 border border-brand-500/20 overflow-hidden flex items-center justify-center text-[10px] font-black">
+              {user?.profile_photo_url || user?.profilePhotoUrl ? (
+                <img src={user.profile_photo_url || user.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-brand-400">{user?.firstName?.[0] || 'A'}</span>
+              )}
             </div>
             <div className="min-w-0">
               <div className="text-white text-xs font-bold truncate">{user?.firstName} {user?.lastName}</div>
@@ -136,11 +140,11 @@ const DashboardHome = () => {
   const qc = useQueryClient();
   const { data: stats, isLoading } = useQuery('adminStats',
     () => api.get('/admin/dashboard').then(r => r.data),
-    { refetchInterval: 5000 } // Refresh every 5 seconds for real-time updates
+    { refetchInterval: 30000 } // Auto-refresh every 30 seconds
   );
 
   const cards = [
-    { title: 'Total Users', value: Number(stats?.users?.total_users || 0).toLocaleString(), sub: `+${stats?.users?.new_today || 0} today`, icon: '👥', color: '#3b82f6', index: 0 },
+    { title: 'Total Users (Active)', value: Number(stats?.users?.total_users || 0).toLocaleString(), sub: `+${stats?.users?.new_today || 0} today`, icon: '👥', color: '#3b82f6', index: 0 },
     { title: 'Active (24h)', value: Number(stats?.users?.active_24h || 0).toLocaleString(), sub: 'recently active', icon: '🟢', color: '#22c55e', index: 1 },
     { title: 'Paid Users', value: (Number(stats?.users?.premium_users || 0) + Number(stats?.users?.vip_users || 0)).toLocaleString(), sub: `${stats?.users?.vip_users || 0} VIP · ${stats?.users?.premium_users || 0} Paid Premium`, icon: '💰', color: '#f59e0b', index: 2 },
     { title: 'Premium Trials', value: Number(stats?.users?.trial_users || 0).toLocaleString(), sub: 'accounts on 30d trial', icon: '🕒', color: '#f43f5e', index: 8 },
@@ -165,7 +169,7 @@ const DashboardHome = () => {
           <p className="text-dark-400 text-sm mt-0.5">Campus Connect Uganda · Real-time overview</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => { qc.invalidateQueries('adminStats'); toast.success('Stats refreshed'); }}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-all active:scale-95"
           >
@@ -266,7 +270,7 @@ const Users = () => {
   );
 
   const users = data?.users || [];
-  
+
   const [editUni, setEditUni] = useState('');
   const [editInts, setEditInts] = useState([]);
 
@@ -299,8 +303,8 @@ const Users = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white">Users <span className="text-dark-500 text-lg">({data?.pagination?.total || 0})</span></h1>
-          <p className="text-dark-400 text-sm">Full user management — ban, promote, change plans</p>
+          <h1 className="text-2xl font-black text-white">Users <span className="text-dark-500 text-lg">({data?.active_count || 0} Active)</span></h1>
+          <p className="text-dark-400 text-sm">Full user management — {data?.banned_count || 0} accounts currently banned</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input type="text" placeholder="🔍 Search name, email, uni..." value={search}
@@ -377,11 +381,11 @@ const Users = () => {
 
       {/* Manual Refresh for Users */}
       <div className="flex justify-end mt-4">
-        <button 
-          onClick={() => { qc.invalidateQueries('adminUsers'); toast.success('Updating user list...'); }}
-          className="text-xs font-bold text-dark-400 hover:text-white flex items-center gap-2"
+        <button
+          onClick={() => { qc.invalidateQueries('adminUsers'); toast.success('List updated!'); }}
+          className="text-[10px] font-black uppercase tracking-[0.2em] text-dark-500 hover:text-brand-400 flex items-center gap-2 transition-all active:scale-95 py-2 px-4 rounded-xl border border-white/5 bg-white/5"
         >
-          🔄 Click to refresh items manually
+          🔄 Refresh Users List
         </button>
       </div>
 
@@ -422,15 +426,15 @@ const Users = () => {
               <div className="space-y-4 py-2 border-y border-white/5">
                 <div>
                   <label className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-2 block">University / Institute</label>
-                  <input 
-                    type="text" 
-                    value={editUni} 
+                  <input
+                    type="text"
+                    value={editUni}
                     onChange={e => setEditUni(e.target.value)}
                     className="input text-xs py-2 bg-white/5 border-white/10"
                     placeholder="University Name"
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-dark-400 text-[10px] font-black uppercase tracking-widest mb-2 block">Interests (Tags)</label>
                   <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
@@ -446,7 +450,7 @@ const Users = () => {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={() => updateProfileM.mutate({ university: editUni, interests: editInts })}
                   disabled={updateProfileM.isLoading}
                   className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20"
@@ -509,25 +513,25 @@ const Content = () => {
           <div className="text-5xl mb-3">✍️</div>
           <p className="text-dark-400">No posts yet</p>
         </div> :
-        <div className="space-y-3">
-          {posts.map(post => (
-            <div key={post.id} className="rounded-2xl p-5 flex items-start gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              {post.profile_photo_url && <img src={post.profile_photo_url} alt="" className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-white text-sm font-bold">{post.first_name} {post.last_name}</span>
-                  <span className="text-dark-600 text-xs">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+          <div className="space-y-3">
+            {posts.map(post => (
+              <div key={post.id} className="rounded-2xl p-5 flex items-start gap-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {post.profile_photo_url && <img src={post.profile_photo_url} alt="" className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-white text-sm font-bold">{post.first_name} {post.last_name}</span>
+                    <span className="text-dark-600 text-xs">{formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}</span>
+                  </div>
+                  <p className="text-dark-300 text-sm leading-relaxed">{post.content}</p>
+                  {post.media_url && <img src={post.media_url} alt="" className="mt-2 rounded-xl max-h-40 object-cover" />}
                 </div>
-                <p className="text-dark-300 text-sm leading-relaxed">{post.content}</p>
-                {post.media_url && <img src={post.media_url} alt="" className="mt-2 rounded-xl max-h-40 object-cover" />}
+                <button onClick={() => { if (window.confirm('Remove this post?')) deleteM.mutate(post.id); }}
+                  className="flex-shrink-0 text-xs text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-all border border-red-500/20">
+                  Remove
+                </button>
               </div>
-              <button onClick={() => { if (window.confirm('Remove this post?')) deleteM.mutate(post.id); }}
-                className="flex-shrink-0 text-xs text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/10 transition-all border border-red-500/20">
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
       }
     </div>
   );

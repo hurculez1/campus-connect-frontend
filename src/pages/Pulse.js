@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useMutation } from 'react-query';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
@@ -46,10 +46,6 @@ const PostCard = ({ post, mode, onLike, onVibeCheck }) => {
             <div className="flex items-center gap-2.5">
               <span className={`text-[10px] font-black uppercase tracking-[0.25em] block ${isAnonymous ? 'text-indigo-400' : 'text-dark-300'}`}>
                 {post.campus}
-              </span>
-              <span className="w-1 h-1 rounded-full bg-dark-700" />
-              <span className="text-dark-500 text-[10px] font-black uppercase tracking-tighter opacity-70">
-                {new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           </div>
@@ -111,6 +107,14 @@ const Pulse = () => {
 
   const isDating = mode === 'dating';
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Mark pulse as seen when entering the page
+  useEffect(() => {
+    api.post('/users/pulse-seen')
+      .then(() => queryClient.invalidateQueries('notifications'))
+      .catch(err => console.error('Failed to mark pulse as seen', err));
+  }, [queryClient]);
 
   const { data: dynamicCampuses } = useQuery(
     'pulse-campuses',
@@ -119,6 +123,7 @@ const Pulse = () => {
       return res.data.campuses || [];
     }
   );
+  const formatMsgTime = () => '';
   const campuses = ['All Campuses', ...(dynamicCampuses || ['Makerere', 'MUBS', 'Kyambogo', 'UCU', 'MUST', 'KIU'])];
 
   const { data, isLoading, refetch } = useQuery(

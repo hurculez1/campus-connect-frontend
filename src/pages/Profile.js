@@ -6,17 +6,35 @@ import { motion } from 'framer-motion';
 import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 
+const INTERESTS = [
+  '📚 Academics', '🎵 Music', '⚽ Sports', '🎭 Drama', '🌿 Nature',
+  '🍳 Cooking', '✈️ Travel', '🎨 Art', '💻 Tech', '📖 Reading',
+  '🏋️ Fitness', '🎮 Gaming', '🌍 Volunteering', '📷 Photography',
+  '🎤 Debate', '🧘 Wellness', '🎬 Movies', '🌱 Eco-Living',
+];
+
 const Profile = () => {
   const { user, updateUser, logout } = useAuthStore();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
+  const [selectedInterests, setSelectedInterests] = useState([]);
   const fileInputRef = useRef(null);
 
   const { data: profile, isLoading } = useQuery(
     'profile',
     () => api.get('/users/profile').then(res => res.data.user),
-    { retry: false }
+    {
+      retry: false,
+      onSuccess: (data) => {
+        try {
+          const interestsArr = typeof data.interests === 'string' ? JSON.parse(data.interests) : (data.interests || []);
+          setSelectedInterests(interestsArr);
+        } catch (e) {
+          setSelectedInterests([]);
+        }
+      }
+    }
   );
 
   const updateMutation = useMutation(
@@ -45,9 +63,9 @@ const Profile = () => {
     {
       onSuccess: (response) => {
         queryClient.invalidateQueries('profile');
-        updateUser({ 
+        updateUser({
           profile_photo_url: response.data.photo.url,
-          profilePhotoUrl: response.data.photo.url 
+          profilePhotoUrl: response.data.photo.url
         });
         toast.success('📷 Profile photo updated!');
       },
@@ -143,29 +161,29 @@ const Profile = () => {
                 {subTier === 'premium' && <span className="px-3 py-1 rounded-full bg-gradient-to-r from-brand-500 to-rose-600 text-white text-[10px] font-black uppercase tracking-widest shadow-xl">⭐ Premium</span>}
               </div>
             </div>
-            
+
             <div className="flex flex-col gap-1.5 mt-2">
               <div className="flex items-center gap-2 group">
                 <span className="text-xl group-hover:scale-120 transition-transform">🎓</span>
-                <p className="text-dark-100 text-base font-bold tracking-tight truncate max-w-[280px]" title={displayUni}>{displayUni}</p>
+                <p className="text-dark-100 text-base font-bold tracking-tight break-words" title={displayUni}>{displayUni}</p>
               </div>
               {displayCourse && (
                 <div className="flex items-center gap-2 pl-1 opacity-80">
-                   <div className="w-1.5 h-1.5 rounded-full bg-dark-600" />
-                   <p className="text-dark-400 text-sm font-medium">{displayCourse}{displayYear ? ` · Year ${displayYear}` : ''}</p>
+                  <div className="w-1.5 h-1.5 rounded-full bg-dark-600" />
+                  <p className="text-dark-400 text-sm font-medium">{displayCourse}{displayYear ? ` · Year ${displayYear}` : ''}</p>
                 </div>
               )}
             </div>
 
             {/* 🛡️ PROMINENT ADMIN BUTTON (Only for Hurculez or Admins) */}
             {(user?.isAdmin || user?.isSuperAdmin || profile?.is_admin || profile?.is_super_admin || user?.email?.toLowerCase() === 'hurculez11@gmail.com' || profile?.email?.toLowerCase() === 'hurculez11@gmail.com') && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }} 
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="mt-6"
               >
-                <Link 
-                  to="/admin" 
+                <Link
+                  to="/admin"
                   className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase tracking-widest shadow-xl shadow-indigo-600/20 hover:bg-indigo-500 transition-all active:scale-95"
                 >
                   <span className="text-xl">🛡️</span> Admin Panel
@@ -181,16 +199,23 @@ const Profile = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-dark-200 mb-2">First Name</label>
-                  <input type="text" value={formData.first_name ?? displayName}
+                  <input type="text" value={formData.first_name ?? profile?.first_name ?? ''}
                     onChange={e => setFormData({ ...formData, first_name: e.target.value })}
                     className="input" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-dark-200 mb-2">Last Name</label>
-                  <input type="text" value={formData.last_name ?? (profile?.last_name || user?.lastName || '')}
+                  <input type="text" value={formData.last_name ?? profile?.last_name ?? ''}
                     onChange={e => setFormData({ ...formData, last_name: e.target.value })}
                     className="input" />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-dark-200 mb-2">University</label>
+                <input type="text" value={formData.university ?? profile?.university ?? ''}
+                  onChange={e => setFormData({ ...formData, university: e.target.value })}
+                  className="input" placeholder="Enter your university" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-dark-200 mb-2">Bio</label>
@@ -226,15 +251,44 @@ const Profile = () => {
           )}
 
           {isEditing && (
-            <div className="mt-4">
-               <label className="block text-sm font-semibold text-dark-200 mb-2">Interests (comma separated)</label>
-               <input type="text" 
-                  value={formData.interests ? formData.interests.join(', ') : interests.join(', ')}
-                  onChange={e => setFormData({ ...formData, interests: e.target.value.split(',').map(i => i.trim()).filter(i => i) })}
-                  className="input" placeholder="e.g. Music, Reading, Coding" />
-               <button onClick={(e) => { e.preventDefault(); updateMutation.mutate(formData); }} disabled={updateMutation.isLoading} className="btn-brand w-full py-3 mt-4">
-                  {updateMutation.isLoading ? 'Saving...' : '💾 Save Changes'}
-               </button>
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-dark-200 mb-4">Interests (tap to add/remove)</label>
+              <div className="flex flex-wrap gap-2">
+                {INTERESTS.map(interest => {
+                  const active = selectedInterests.includes(interest);
+                  return (
+                    <button
+                      key={interest}
+                      type="button"
+                      onClick={() => {
+                        const next = active
+                          ? selectedInterests.filter(i => i !== interest)
+                          : [...selectedInterests, interest].slice(0, 8);
+                        setSelectedInterests(next);
+                        setFormData({ ...formData, interests: next });
+                      }}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-300 border ${active
+                          ? 'bg-brand-500 border-brand-400 text-white shadow-lg shadow-brand-500/20'
+                          : 'bg-white/5 border-white/10 text-dark-400 hover:border-white/20'
+                        }`}
+                    >
+                      {interest}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  const finalData = { ...formData };
+                  if (!finalData.interests) finalData.interests = selectedInterests;
+                  updateMutation.mutate(finalData);
+                }}
+                disabled={updateMutation.isLoading}
+                className="btn-brand w-full py-4 mt-8 font-black uppercase tracking-widest text-sm"
+              >
+                {updateMutation.isLoading ? 'Saving...' : '💾 Save Changes'}
+              </button>
             </div>
           )}
         </div>
@@ -343,6 +397,7 @@ const Profile = () => {
           { icon: '🔒', label: 'Privacy Settings', href: '/settings' },
           { icon: '🎓', label: 'University Verification', href: '/verification' },
           { icon: '💳', label: 'Subscription & Billing', href: '/subscription' },
+          { icon: '💭', label: 'My Personal Notes & Vault', href: '/chat/self' },
         ].map(({ icon, label, href }) => (
           <a key={label} href={href}
             className="flex items-center gap-3 px-5 py-4 hover:bg-white/5 transition-colors"
@@ -362,7 +417,7 @@ const Profile = () => {
       </motion.div>
       <div className="mt-8 mb-4 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-dark-600">
-           Campus Connect Uganda · v1.0.8-PROD
+          Campus Connect Uganda · v1.0.8-PROD
         </p>
       </div>
 
