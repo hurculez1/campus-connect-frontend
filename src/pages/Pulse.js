@@ -5,92 +5,75 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import api from '../utils/api';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
+import { ProfileSheet } from './Discover';
 
 // ─── Post Card ──────────────────────────────────────────────────────────────
-const PostCard = ({ post, mode, onLike, onVibeCheck }) => {
+const PostCard = ({ post, mode, onLike, onVibeCheck, onProfileClick }) => {
   const isDating = mode === 'dating';
   const isAnonymous = post.is_anonymous;
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={`glass-card-premium p-6 mb-8 relative overflow-hidden group transition-all duration-700 hover:shadow-[0_30px_60px_rgba(0,0,0,0.5)] border-l-4 ${
+      className={`glass-card-premium p-4 mb-4 relative overflow-hidden group transition-all duration-500 hover:shadow-2xl border-l-[3px] ${
         isAnonymous ? 'border-indigo-500 bg-indigo-500/[0.03]' : 'border-brand-500 bg-white/[0.02]'
       }`}
     >
-      {isAnonymous && (
-        <div className="absolute -top-12 -right-12 text-[10rem] opacity-[0.03] pointer-events-none group-hover:opacity-[0.06] transition-opacity rotate-12">
-          👻
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-2xl overflow-hidden shadow-2xl border-2 transition-transform duration-500 group-hover:rotate-3 group-hover:scale-110 ${
+      {/* Header - Compact Icon Only */}
+      <div className="flex items-center justify-between mb-3">
+        <div 
+          onClick={() => !isAnonymous && onProfileClick(post.user_id)}
+          className={`w-9 h-9 rounded-xl overflow-hidden shadow-lg border-2 cursor-pointer transition-transform active:scale-90 ${
             isAnonymous ? 'border-indigo-500/40 bg-indigo-900/20' : isDating ? 'border-brand-500/40 bg-brand-500/10' : 'border-indigo-500/40 bg-indigo-500/10'
-          }`}>
-            {isAnonymous ? (
-              <div className="w-full h-full flex items-center justify-center text-2xl drop-shadow-lg">👻</div>
-            ) : (
-              <img src={post.profile_photo_url || `https://ui-avatars.com/api/?name=${post.first_name}&background=random`} alt={post.first_name} className="w-full h-full object-cover" />
-            )}
-          </div>
-          <div>
-            <h4 className="text-white font-black text-base tracking-tight leading-none mb-1.5 flex items-center gap-2">
-              {isAnonymous ? 'Ghost User' : post.first_name || 'Campus Student'}
-              {!isAnonymous && <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />}
-            </h4>
-            <div className="flex items-center gap-2.5">
-              <span className={`text-[10px] font-black uppercase tracking-[0.25em] block ${isAnonymous ? 'text-indigo-400' : 'text-dark-300'}`}>
-                {post.campus}
-              </span>
-            </div>
-          </div>
+          }`}
+        >
+          {isAnonymous ? (
+            <div className="w-full h-full flex items-center justify-center text-lg">👻</div>
+          ) : (
+            <img 
+              src={post.profile_photo_url || `https://ui-avatars.com/api/?name=${post.first_name}&background=random`} 
+              alt="" 
+              className="w-full h-full object-cover" 
+            />
+          )}
         </div>
 
         {post.type === 'confession' && (
-          <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[9px] font-black uppercase tracking-[0.25em] shadow-lg backdrop-blur-sm">
+          <div className="px-2 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[8px] font-black uppercase tracking-widest shadow-sm backdrop-blur-sm">
             Confession
           </div>
         )}
       </div>
 
       {/* Content */}
-      <div className="relative">
-        <p className="text-dark-50 text-[16px] leading-[1.6] mb-6 font-medium tracking-tight opacity-95 group-hover:opacity-100 transition-opacity">
+      <div className="relative mb-4">
+        <p className="text-dark-50 text-[14px] leading-relaxed font-medium tracking-tight opacity-95">
           {post.content}
         </p>
       </div>
 
       {/* Footer / Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-white/10">
-        <div className="flex items-center gap-8">
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        <div className="flex items-center gap-6">
           {/* Fire / Like */}
-          <button onClick={() => onLike(post.id)} className="flex items-center gap-2.5 group/btn">
-            <div className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 group-hover/btn:scale-110 active:scale-95">
-              <span className="text-base group-hover/btn:scale-125 transition-transform">🔥</span>
+          <button onClick={() => onLike(post.id)} className="flex items-center gap-2 group/btn">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-brand-500/20 active:scale-90">
+              <span className="text-sm">🔥</span>
             </div>
-            <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">{post.likes_count || 0}</span>
+            <span className="text-dark-400 text-[10px] font-black tracking-widest">{post.likes_count || 0}</span>
           </button>
 
-          {/* Vibe Check — direct chat (only for non-anonymous posts) */}
+          {/* Vibe Check */}
           {!isAnonymous && post.user_id && (
-            <button onClick={() => onVibeCheck(post.user_id)} className="flex items-center gap-2.5 group/btn">
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-indigo-500/20 group-hover/btn:scale-110 active:scale-95">
-                <span className="text-base group-hover/btn:scale-125 transition-transform">💬</span>
+            <button onClick={() => onVibeCheck(post.user_id)} className="flex items-center gap-2 group/btn">
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/5 group-hover/btn:bg-indigo-500/20 active:scale-90">
+                <span className="text-sm">💬</span>
               </div>
-              <span className="text-dark-400 text-[11px] font-black uppercase tracking-[0.2em] group-hover/btn:text-white transition-colors">Vibe Check</span>
+              <span className="text-dark-400 text-[10px] font-black uppercase tracking-widest">Vibe Check</span>
             </button>
           )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button className="w-9 h-9 rounded-2xl flex items-center justify-center bg-white/5 hover:bg-white/10 transition-all active:scale-90 group/share">
-            <span className="text-dark-400 text-sm group-hover/share:scale-110 transition-transform">📤</span>
-          </button>
         </div>
       </div>
     </motion.div>
@@ -104,6 +87,8 @@ const Pulse = () => {
   const [filter, setFilter] = useState('All Campuses');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newPost, setNewPost] = useState({ content: '', campus: '', isAnonymous: false });
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [isLiking, setIsLiking] = useState(new Set());
 
   const isDating = mode === 'dating';
   const navigate = useNavigate();
@@ -187,6 +172,28 @@ const Pulse = () => {
     }
   };
 
+  // Handle Profile click - fetch full details
+  const handleProfileClick = async (userId) => {
+    try {
+      const res = await api.get(`/users/${userId}/profile`);
+      setSelectedProfile(res.data.user);
+    } catch (err) {
+      console.error('Failed to fetch profile:', err);
+      toast.error('Could not load profile');
+    }
+  };
+
+  const handleProfileLike = async (profile) => {
+    try {
+      const targetUserId = profile.id || profile.userId;
+      await api.post('/matches/swipe', { targetUserId, direction: 'like' });
+      setIsLiking(prev => new Set([...prev, targetUserId]));
+      toast.success('Nice! Liked profile.');
+    } catch (err) {
+      toast.error('Could not like profile.');
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-0">
       {/* Tabs & Filters Header */}
@@ -249,7 +256,14 @@ const Pulse = () => {
         ) : (
           <AnimatePresence>
             {data?.map(post => (
-              <PostCard key={post.id} post={post} mode={mode} onLike={handleLike} onVibeCheck={handleVibeCheck} />
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                mode={mode} 
+                onLike={handleLike} 
+                onVibeCheck={handleVibeCheck}
+                onProfileClick={handleProfileClick}
+              />
             ))}
           </AnimatePresence>
         )}
@@ -326,6 +340,22 @@ const Pulse = () => {
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedProfile && (
+          <ProfileSheet
+            profile={selectedProfile}
+            isDating={isDating}
+            isLiked={isLiking.has(selectedProfile.id)}
+            onLike={handleProfileLike}
+            onClose={() => setSelectedProfile(null)}
+            onChat={async () => {
+              setSelectedProfile(null);
+              await handleVibeCheck(selectedProfile.id);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
